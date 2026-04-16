@@ -1,0 +1,625 @@
+
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8">
+<meta name="theme-color" content="#0f172a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Treino ABCD">
+<link rel="apple-touch-icon" href="./appicon.png">
+<link rel="manifest" href="./manifest.webmanifest">
+    <title>Treino ABCD - Lombar Sensível</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+    
+    :root {
+        --bg-color: #f4f7fb;
+        --card-bg: #ffffff;
+        --card-bg-soft: #f8fafc;
+        --surface-muted: #eef2f7;
+        --text-main: #0f172a;
+        --text-soft: #334155;
+        --text-muted: #64748b;
+        --border: #dbe4ee;
+        --border-strong: #cbd5e1;
+
+        --accent: #2563eb;
+        --accent-strong: #1d4ed8;
+        --accent-soft: #dbeafe;
+        --accent-soft-2: #eff6ff;
+        --accent-ring: rgba(37, 99, 235, 0.22);
+
+        --success: #059669;
+        --danger: #dc2626;
+
+        --day-bg: #e2e8f0;
+        --day-text: #334155;
+        --day-border: #cbd5e1;
+
+        --today-bg: #eff6ff;
+        --today-text: #1d4ed8;
+        --today-border: #93c5fd;
+
+        --timer-bg: #eff6ff;
+        --timer-text: #1d4ed8;
+        --timer-border: #bfdbfe;
+    }
+
+    .dark-mode {
+        --bg-color: #0b1220;
+        --card-bg: #111827;
+        --card-bg-soft: #162033;
+        --surface-muted: #1e293b;
+        --text-main: #e5eef8;
+        --text-soft: #cbd5e1;
+        --text-muted: #94a3b8;
+        --border: #253247;
+        --border-strong: #334155;
+
+        --accent: #60a5fa;
+        --accent-strong: #93c5fd;
+        --accent-soft: rgba(96, 165, 250, 0.16);
+        --accent-soft-2: rgba(96, 165, 250, 0.12);
+        --accent-ring: rgba(96, 165, 250, 0.28);
+
+        --success: #34d399;
+        --danger: #f87171;
+
+        --day-bg: #1e293b;
+        --day-text: #cbd5e1;
+        --day-border: #334155;
+
+        --today-bg: rgba(96, 165, 250, 0.14);
+        --today-text: #bfdbfe;
+        --today-border: rgba(147, 197, 253, 0.45);
+
+        --timer-bg: rgba(96, 165, 250, 0.14);
+        --timer-text: #bfdbfe;
+        --timer-border: rgba(147, 197, 253, 0.35);
+    }
+
+    body {
+        font-family: 'Inter', sans-serif;
+        background-color: var(--bg-color);
+        color: var(--text-main);
+        transition: background-color 0.3s ease, color 0.3s ease;
+    }
+
+    header {
+        background-color: var(--card-bg) !important;
+        border-bottom: 1px solid var(--border);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+    }
+
+    h1, h2, h3, h4 {
+        color: var(--text-main);
+    }
+
+    #muscleGroup {
+        color: var(--accent) !important;
+    }
+
+    .card {
+        background-color: var(--card-bg);
+        border-color: var(--border) !important;
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+        transition: transform 0.2s, box-shadow 0.2s, background-color 0.3s ease, border-color 0.3s ease;
+    }
+
+    .dark-mode .card {
+        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+    }
+
+    .card:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+    }
+
+    .dark-mode .card:hover {
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.34);
+    }
+
+    .card p,
+    .card li,
+    #restMessage p {
+        color: var(--text-soft);
+    }
+
+    .card .opacity-80,
+    .card .opacity-60,
+    #restMessage .opacity-50 {
+        opacity: 1 !important;
+        color: var(--text-muted) !important;
+    }
+
+    .card .text-red-400 {
+        color: var(--danger) !important;
+    }
+
+    .series-dot {
+        width: 32px;
+        height: 32px;
+        border-radius: 999px;
+        border: 2px solid var(--border-strong);
+        background: var(--card-bg-soft);
+        color: var(--text-soft);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04);
+    }
+
+    .series-dot.active {
+        background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+        border-color: transparent;
+        color: #ffffff;
+        transform: scale(1.08);
+        box-shadow: 0 0 0 4px var(--accent-ring);
+    }
+
+    .timer-progress {
+        transition: width 1s linear;
+        background: linear-gradient(90deg, var(--accent), var(--accent-strong)) !important;
+    }
+
+    .hidden { display: none; }
+    
+    .tab-active {
+        border-bottom: 3px solid var(--accent);
+        color: var(--accent);
+    }
+
+    /* Toggle tema */
+    #themeToggle {
+        color: var(--text-soft);
+        background: transparent;
+        border: 1px solid transparent;
+        transition: all 0.2s ease;
+    }
+
+    #themeToggle:hover {
+        background: var(--card-bg-soft) !important;
+        border-color: var(--border);
+        color: var(--text-main);
+    }
+
+    /* Badges dos dias */
+    .day-btn {
+        position: relative;
+        background: var(--day-bg) !important;
+        color: var(--day-text) !important;
+        border: 1px solid var(--day-border);
+        box-shadow: 0 2px 6px rgba(15, 23, 42, 0.05);
+        transition: all 0.2s ease;
+    }
+
+    .day-btn:hover {
+        background: var(--card-bg-soft) !important;
+        color: var(--text-main) !important;
+        border-color: var(--today-border);
+        transform: translateY(-1px);
+    }
+
+    /* Dia selecionado (teu JS já aplica bg-blue-500 + text-white) */
+    .day-btn.bg-blue-500,
+    .day-btn.text-white,
+    .day-btn.bg-blue-500.text-white {
+        background: linear-gradient(135deg, var(--accent), var(--accent-strong)) !important;
+        color: #ffffff !important;
+        border-color: transparent !important;
+        box-shadow: 0 8px 22px var(--accent-ring);
+    }
+
+    .day-btn.bg-blue-500::after,
+    .day-btn.text-white::after,
+    .day-btn.bg-blue-500.text-white::after {
+        content: "HOJE";
+        position: absolute;
+        top: -8px;
+        right: -4px;
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        padding: 2px 7px;
+        border-radius: 999px;
+        background: #ffffff;
+        color: var(--accent-strong);
+        border: 1px solid rgba(255,255,255,0.85);
+        box-shadow: 0 6px 14px rgba(15, 23, 42, 0.16);
+    }
+
+    .dark-mode .day-btn.bg-blue-500::after,
+    .dark-mode .day-btn.text-white::after,
+    .dark-mode .day-btn.bg-blue-500.text-white::after {
+        background: #0f172a;
+        color: var(--accent-strong);
+        border-color: rgba(147, 197, 253, 0.32);
+        box-shadow: 0 6px 14px rgba(0, 0, 0, 0.35);
+    }
+
+    /* Botão TROCAR */
+    button[onclick^="showSwaps"] {
+        background: var(--card-bg-soft) !important;
+        color: var(--text-main) !important;
+        border: 1px solid var(--border) !important;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    }
+
+    button[onclick^="showSwaps"]:hover {
+        background: var(--accent-soft-2) !important;
+        border-color: var(--today-border) !important;
+        color: var(--accent-strong) !important;
+    }
+
+    /* Botão descanso */
+    button[onclick^="startTimer"] {
+        background: var(--timer-bg) !important;
+        color: var(--timer-text) !important;
+        border: 1px solid var(--timer-border) !important;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    }
+
+    button[onclick^="startTimer"]:hover {
+        filter: brightness(0.98);
+        transform: translateY(-1px);
+    }
+
+    button[onclick^="startTimer"].opacity-50,
+    button[onclick^="startTimer"][data-running="true"] {
+        background: var(--surface-muted) !important;
+        color: var(--text-muted) !important;
+        border-color: var(--border) !important;
+    }
+
+    /* Modal de trocas */
+    [id^="swaps-"] {
+        background: color-mix(in srgb, var(--card-bg) 94%, transparent) !important;
+        border-top: 1px solid var(--border);
+    }
+
+    [id^="swaps-"] h4 {
+        color: var(--text-main);
+    }
+
+    [id^="swaps-"] button {
+        background: var(--card-bg-soft);
+        color: var(--text-main);
+        border: 1px solid var(--border);
+        transition: all 0.2s ease;
+    }
+
+    [id^="swaps-"] button:hover {
+        background: var(--accent-soft-2) !important;
+        border-color: var(--today-border) !important;
+        color: var(--accent-strong) !important;
+    }
+
+    [id^="swaps-"] button.text-red-500 {
+        background: transparent !important;
+        color: var(--danger) !important;
+        border: none !important;
+        box-shadow: none !important;
+    }
+
+    /* Destaques de texto */
+    .text-blue-500 {
+        color: var(--accent) !important;
+    }
+
+    .font-semibold,
+    .font-bold {
+        letter-spacing: -0.01em;
+    }
+
+    /* Scroll horizontal dos dias um pouco mais bonito */
+    .no-scrollbar::-webkit-scrollbar {
+        display: none;
+    }
+
+    .no-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+
+    @keyframes pulse-ring {
+        0% { transform: scale(.33); }
+        80%, 100% { opacity: 0; }
+    }
+
+    .animate-finish {
+        animation: bounce 0.5s ease infinite alternate;
+    }
+</style>
+</head>
+<body class="min-h-screen pb-20">
+
+    <!-- Header & Theme Toggle -->
+    <header class="p-4 flex justify-between items-center bg-white dark:bg-slate-900 shadow-sm sticky top-0 z-50 transition-colors">
+        <h1 class="text-xl font-bold">Lombar <span class="text-blue-500">Sensível</span></h1>
+        <button id="themeToggle" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-slate-800">
+            <svg id="sunIcon" class="w-6 h-6 hidden" fill="currentColor" viewBox="0 0 20 20"><path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z"></path></svg>
+            <svg id="moonIcon" class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path></svg>
+        </button>
+    </header>
+
+    <main class="max-w-md mx-auto p-4">
+        <!-- Regras e Aquecimento -->
+        <div class="card p-4 rounded-xl mb-6 border border-slate-200 dark:border-slate-700 shadow-sm">
+            <h2 class="font-bold mb-2 flex items-center gap-2">
+                <span>⚠️</span> Regras Gerais
+            </h2>
+            <ul class="text-sm space-y-1 opacity-80">
+                <li>• Aquecimento: 5-10 min caminhada/bike.</li>
+                <li>• Descanso: 45s a 90s.</li>
+                <li>• Carga limpa, sem prender a respiração.</li>
+                <li>• Não ir até a falha nas primeiras semanas.</li>
+            </ul>
+        </div>
+
+        <!-- Seletor de Dias -->
+        <div class="flex overflow-x-auto gap-2 mb-6 no-scrollbar py-2">
+            <button onclick="changeDay(1)" data-day="1" class="day-btn px-4 py-2 rounded-full whitespace-nowrap bg-gray-200 dark:bg-slate-800 text-sm font-semibold">SEG - A</button>
+            <button onclick="changeDay(2)" data-day="2" class="day-btn px-4 py-2 rounded-full whitespace-nowrap bg-gray-200 dark:bg-slate-800 text-sm font-semibold">TER - B</button>
+            <button onclick="changeDay(4)" data-day="4" class="day-btn px-4 py-2 rounded-full whitespace-nowrap bg-gray-200 dark:bg-slate-800 text-sm font-semibold">QUI - C</button>
+            <button onclick="changeDay(5)" data-day="5" class="day-btn px-4 py-2 rounded-full whitespace-nowrap bg-gray-200 dark:bg-slate-800 text-sm font-semibold">SEX - D</button>
+            <button onclick="changeDay(0)" data-day="0" class="day-btn px-4 py-2 rounded-full whitespace-nowrap bg-gray-200 dark:bg-slate-800 text-sm font-semibold">OUTROS</button>
+        </div>
+
+        <!-- Container de Treino -->
+        <div id="workoutTitle" class="mb-4">
+            <h2 class="text-2xl font-bold" id="dayLabel">Treino de Hoje</h2>
+            <p id="muscleGroup" class="text-blue-500 font-semibold"></p>
+        </div>
+
+        <div id="exercisesList" class="space-y-4">
+            <!-- Exercícios serão injetados aqui via JS -->
+        </div>
+
+        <!-- Mensagem de Descanso -->
+        <div id="restMessage" class="hidden mt-8 text-center p-8">
+            <p class="text-xl opacity-50">Hoje é dia de descanso! Recuperação é parte do treino. 🧘‍♂️</p>
+        </div>
+    </main>
+
+    <!-- Som de Alerta (Beep) -->
+    <audio id="beepSound" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3"></audio>
+
+    <script>
+        const workoutData = {
+            1: { // Segunda
+                name: "Inferiores 1",
+                desc: "Glúteo + Posterior + Estabilidade",
+                exercises: [
+                    { id: "a1", name: "Hip thrust máquina", sets: 3, reps: "10", swaps: ["Glute bridge no chão (12 reps)", "Hip thrust no smith (10 reps)", "Pull-through no cabo (12 reps)"] },
+                    { id: "a2", name: "Mesa flexora", sets: 3, reps: "12", swaps: ["Flexora sentada (12 reps)", "Flexora em pé unilateral (12 reps)", "Sliding leg curl (10 reps)"] },
+                    { id: "a3", name: "Agachamento goblet para banco", sets: 3, reps: "10", swaps: ["Step-up baixo (10 reps)", "Leg press curto controlado (12 reps)", "Split squat leve (10 reps)"] },
+                    { id: "a4", name: "Cadeira abdutora", sets: 3, reps: "15", swaps: ["Abdução no cabo (12 reps)", "Caminhada lateral miniband (12 passos)", "Abdução unilateral máquina (12 reps)"] },
+                    { id: "a5", name: "Pallof press", sets: 3, reps: "12 cada lado", swaps: ["Dead bug (10 cada lado)", "Bird-dog (8 cada lado)", "Prancha curta (20-30s)"] }
+                ]
+            },
+            2: { // Terça
+                name: "Superior A",
+                desc: "Peito + Ombro + Tríceps",
+                exercises: [
+                    { id: "b1", name: "Chest press sentado máquina", sets: 3, reps: "10", swaps: ["Supino halteres banco (10 reps)", "Smith inclinado leve (10 reps)", "Flexão mãos no banco (12 reps)"] },
+                    { id: "b2", name: "Peck deck / crucifixo máquina", sets: 3, reps: "12", swaps: ["Crossover cabo (12 reps)", "Crucifixo halteres leve (12 reps)", "Chest press convergente (10 reps)"] },
+                    { id: "b3", name: "Elevação lateral sentada", sets: 3, reps: "12", swaps: ["Máquina lateral raise (12 reps)", "Cabo unilateral (12 reps)", "Halteres sentado com encosto (12 reps)"] },
+                    { id: "b4", name: "Desenvolvimento sentado encosto", sets: 2, reps: "10", swaps: ["Landmine press (10 reps)", "Máquina shoulder press leve (10 reps)", "Elevação frontal cabo (12 reps)"], obs: "Se comprimir lombar, corte sem pena!" },
+                    { id: "b5", name: "Tríceps corda no pulley", sets: 3, reps: "12", swaps: ["Tríceps barra (12 reps)", "Francês sentado encosto (12 reps)", "Mergulho assistido máquina (10 reps)"] }
+                ]
+            },
+            4: { // Quinta
+                name: "Superior B",
+                desc: "Costas + Bíceps + Core",
+                exercises: [
+                    { id: "c1", name: "Puxada alta pegada neutra", sets: 3, reps: "10", swaps: ["Puxada supinada (10 reps)", "Puxada unilateral cabo (10 reps)", "Pull-down com triângulo (10 reps)"] },
+                    { id: "c2", name: "Remada com apoio no peito", sets: 3, reps: "10", swaps: ["Remada baixa sentada (12 reps)", "Remada unilateral joelho banco (10 reps)", "Máquina convergente (10 reps)"] },
+                    { id: "c3", name: "Face pull", sets: 3, reps: "12", swaps: ["Reverse peck deck (12 reps)", "Crucifixo inverso banco inclinado (12 reps)", "Remada alta cabo leve (12 reps)"] },
+                    { id: "c4", name: "Rosca alternada sentada", sets: 3, reps: "12", swaps: ["Rosca máquina (12 reps)", "Rosca no cabo (12 reps)", "Rosca martelo sentada (12 reps)"] },
+                    { id: "c5", name: "Side plank modificada", sets: 3, reps: "20s cada lado", swaps: ["Prancha normal curta (20-30s)", "Bird-dog (8 cada lado)", "Abdominal bracing (15s)"] }
+                ]
+            },
+            5: { // Sexta
+                name: "Inferiores 2",
+                desc: "Quad + Glúteo + Anti-rotação",
+                exercises: [
+                    { id: "d1", name: "Step-up baixo/médio", sets: 3, reps: "10 cada lado", swaps: ["Afundo estático leve (10 reps)", "Agachamento smith para banco (10 reps)", "Cadeira extensora (12 reps)"] },
+                    { id: "d2", name: "Cadeira extensora", sets: 3, reps: "12", swaps: ["Leg press curto/controlado (12 reps)", "Spanish squat com faixa (12 reps)", "Goblet squat para banco (10 reps)"] },
+                    { id: "d3", name: "Hip thrust unilateral", sets: 3, reps: "10 cada lado", swaps: ["Glute bridge unilateral (10 reps)", "Coice no cabo (12 reps)", "Glute drive máquina (10 reps)"] },
+                    { id: "d4", name: "Panturrilha sentado/em pé", sets: 3, reps: "15", swaps: ["Panturrilha leg press (15 reps)", "Panturrilha com halter (15 reps)", "Smith calf raise (15 reps)"] },
+                    { id: "d5", name: "Pallof press lateral walk", sets: 3, reps: "20s cada lado", swaps: ["Dead bug (10 cada lado)", "Bird-dog (8 cada lado)", "Side plank modificada (20s)"] }
+                ]
+            }
+        };
+
+        const state = {
+            currentDay: new Date().getDay(),
+            activeDay: null,
+            timer: null,
+            progress: {} // Armazena series de cada exercicio
+        };
+
+        // Theme Logic
+        const themeToggle = document.getElementById('themeToggle');
+        const sunIcon = document.getElementById('sunIcon');
+        const moonIcon = document.getElementById('moonIcon');
+
+        function toggleTheme() {
+            document.body.classList.toggle('dark-mode');
+            const isDark = document.body.classList.contains('dark-mode');
+            sunIcon.classList.toggle('hidden', !isDark);
+            moonIcon.classList.toggle('hidden', isDark);
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+        }
+
+        themeToggle.addEventListener('click', toggleTheme);
+        if (localStorage.getItem('theme') === 'dark') toggleTheme();
+
+        function changeDay(day) {
+            state.activeDay = day;
+            document.querySelectorAll('.day-btn').forEach(btn => {
+                btn.classList.toggle('bg-blue-500', parseInt(btn.dataset.day) === day);
+                btn.classList.toggle('text-white', parseInt(btn.dataset.day) === day);
+            });
+            renderExercises(day);
+        }
+
+        function renderExercises(day) {
+            const list = document.getElementById('exercisesList');
+            const workoutTitle = document.getElementById('workoutTitle');
+            const restMessage = document.getElementById('restMessage');
+            
+            list.innerHTML = '';
+            
+            if (!workoutData[day]) {
+                workoutTitle.classList.add('hidden');
+                restMessage.classList.remove('hidden');
+                return;
+            }
+
+            workoutTitle.classList.remove('hidden');
+            restMessage.classList.add('hidden');
+            document.getElementById('dayLabel').innerText = `Treino ${day === 1 ? 'A' : day === 2 ? 'B' : day === 4 ? 'C' : 'D'}`;
+            document.getElementById('muscleGroup').innerText = `${workoutData[day].name} (${workoutData[day].desc})`;
+
+            workoutData[day].exercises.forEach((ex, idx) => {
+                const card = document.createElement('div');
+                card.className = 'card p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden';
+                
+                const exerciseProgress = state.progress[ex.id] || 0;
+
+                card.innerHTML = `
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="flex-1">
+                            <h3 class="font-bold text-lg leading-tight" id="title-${ex.id}">${ex.name}</h3>
+                            <p class="text-sm opacity-60">${ex.sets} séries x ${ex.reps}</p>
+                            ${ex.obs ? `<p class="text-xs text-red-400 mt-1 font-semibold italic">${ex.obs}</p>` : ''}
+                        </div>
+                        <button onclick="showSwaps('${ex.id}', ${day}, ${idx})" class="text-xs bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-md font-medium border border-slate-200 dark:border-slate-600">TROCAR</button>
+                    </div>
+
+                    <div class="flex items-center gap-4 mb-4">
+                        <div class="flex gap-2" onclick="incrementSeries('${ex.id}', ${ex.sets})">
+                            ${Array.from({length: ex.sets}).map((_, i) => `
+                                <div class="series-dot ${i < exerciseProgress ? 'active' : ''}">
+                                    ${i < exerciseProgress ? '✓' : i + 1}
+                                </div>
+                            `).join('')}
+                        </div>
+                        <div class="flex-1 text-right">
+                             <button onclick="startTimer(this)" class="bg-blue-50 text-blue-600 dark:bg-slate-800 dark:text-blue-400 text-xs font-bold px-3 py-2 rounded-lg transition-all active:scale-95">
+                                ⏱️ DESCANSO
+                             </button>
+                        </div>
+                    </div>
+
+                    <!-- Mini Timer Progress Bar -->
+                    <div class="absolute bottom-0 left-0 h-1 bg-blue-500 timer-progress" style="width: 0%"></div>
+                    
+                    <!-- Swaps Modal Overlay (Hidden) -->
+                    <div id="swaps-${ex.id}" class="hidden absolute inset-0 bg-white dark:bg-slate-900 z-10 p-4 overflow-y-auto">
+                        <div class="flex justify-between items-center mb-3">
+                            <h4 class="font-bold text-sm uppercase">Trocas Disponíveis</h4>
+                            <button onclick="hideSwaps('${ex.id}')" class="text-xs font-bold text-red-500">FECHAR</button>
+                        </div>
+                        <div class="space-y-2">
+                             <button onclick="applySwap('${ex.id}', '${ex.name}')" class="w-full text-left p-2 text-sm border rounded bg-slate-50 dark:bg-slate-800">${ex.name} (Original)</button>
+                            ${ex.swaps.map(s => `
+                                <button onclick="applySwap('${ex.id}', '${s}')" class="w-full text-left p-2 text-sm border rounded hover:border-blue-500 dark:border-slate-700">
+                                    ${s}
+                                </button>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+                list.appendChild(card);
+            });
+        }
+
+        function incrementSeries(id, total) {
+            if (!state.progress[id]) state.progress[id] = 0;
+            
+            state.progress[id]++;
+            
+            // Se passar do total, reinicia (como solicitado pelo usuário)
+            if (state.progress[id] > total) {
+                state.progress[id] = 0;
+            }
+
+            renderExercises(state.activeDay);
+
+            // Se acabou a última série (exatamente igual ao total)
+            if (state.progress[id] === total) {
+                triggerFinishAnimation();
+            }
+        }
+
+        function triggerFinishAnimation() {
+            confetti({
+                particleCount: 150,
+                spread: 70,
+                origin: { y: 0.6 },
+                colors: ['#3b82f6', '#60a5fa', '#ffffff']
+            });
+        }
+
+        function showSwaps(id) {
+            document.getElementById(`swaps-${id}`).classList.remove('hidden');
+        }
+
+        function hideSwaps(id) {
+            document.getElementById(`swaps-${id}`).classList.add('hidden');
+        }
+
+        function applySwap(id, newName) {
+            document.getElementById(`title-${id}`).innerText = newName;
+            hideSwaps(id);
+        }
+
+        function startTimer(btn) {
+            const card = btn.closest('.card');
+            const progressBar = card.querySelector('.timer-progress');
+            const beep = document.getElementById('beepSound');
+            
+            // Previne múltiplos timers no mesmo card
+            if (btn.dataset.running === "true") return;
+            
+            let timeLeft = 60; // 60 segundos de descanso padrão
+            btn.dataset.running = "true";
+            btn.classList.add('opacity-50');
+            
+            const interval = setInterval(() => {
+                timeLeft--;
+                const percent = ((60 - timeLeft) / 60) * 100;
+                progressBar.style.width = `${percent}%`;
+                btn.innerText = `⏳ ${timeLeft}s`;
+
+                if (timeLeft <= 0) {
+                    clearInterval(interval);
+                    btn.innerText = `⏱️ DESCANSO`;
+                    btn.dataset.running = "false";
+                    btn.classList.remove('opacity-50');
+                    progressBar.style.width = `0%`;
+                    beep.play().catch(e => console.log("Erro ao tocar som: Interação necessária"));
+                }
+            }, 1000);
+        }
+
+        // Init
+        window.onload = () => {
+            // Se o dia atual não estiver no treino (ex: Sab/Dom), seleciona "Outros"
+            const today = state.currentDay;
+            const initialDay = workoutData[today] ? today : 0;
+            changeDay(initialDay);
+        };
+    </script>
+</body>
+</html>
