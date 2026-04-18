@@ -109,6 +109,7 @@ const dayLabel = document.getElementById('dayLabel');
 const muscleGroup = document.getElementById('muscleGroup');
 const workoutHero = document.getElementById('workoutHero');
 const workoutHeroImage = document.getElementById('workoutHeroImage');
+const workoutHeroFallback = document.getElementById('workoutHeroFallback');
 const toggleConfigBtn = document.getElementById('toggleConfigBtn');
 const configPanel = document.getElementById('configPanel');
 const weightTrackingToggle = document.getElementById('weightTrackingToggle');
@@ -147,6 +148,7 @@ const loadMoreImageResultsBtn = document.getElementById('loadMoreImageResultsBtn
 const imageViewerModal = document.getElementById('imageViewerModal');
 const closeImageViewerBtn = document.getElementById('closeImageViewerBtn');
 const imageViewerImg = document.getElementById('imageViewerImg');
+const imageViewerFallback = document.getElementById('imageViewerFallback');
 
 const WIKIMEDIA_IMAGE_SEARCH_ENDPOINT = 'https://commons.wikimedia.org/w/api.php';
 const OPENVERSE_IMAGE_SEARCH_ENDPOINT = 'https://api.openverse.org/v1/images/';
@@ -447,11 +449,15 @@ function renderWorkoutHero(workout) {
         workoutHeroImage.alt = `Imagem do treino ${workout.name}`;
         workoutHeroImage.dataset.fullImageUrl = workout.imageUrl;
         workoutHeroImage.classList.toggle('is-expandable', state.settings.enableImageExpansion);
+        workoutHeroImage.classList.remove('hidden');
+        workoutHeroFallback.classList.add('hidden');
         workoutHero.classList.remove('hidden');
     } else {
         workoutHeroImage.removeAttribute('src');
         workoutHeroImage.removeAttribute('data-full-image-url');
         workoutHeroImage.classList.remove('is-expandable');
+        workoutHeroImage.classList.remove('hidden');
+        workoutHeroFallback.classList.add('hidden');
         workoutHero.classList.add('hidden');
     }
 }
@@ -469,7 +475,10 @@ function renderExercisePreviewImage(imageUrl, imageAlt) {
         return `
             <div class="exercise-media mb-4">
                 <button type="button" class="image-preview-trigger" data-action="open-image-viewer" data-image-url="${escapeHtml(imageUrl)}" data-image-alt="${escapeHtml(imageAlt)}">
-                    <img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(imageAlt)}" class="exercise-image">
+                    <div class="image-frame">
+                        <img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(imageAlt)}" class="exercise-image">
+                        <div class="image-fallback hidden">Link sem imagem</div>
+                    </div>
                 </button>
             </div>
         `;
@@ -478,7 +487,10 @@ function renderExercisePreviewImage(imageUrl, imageAlt) {
     return `
         <div class="exercise-media mb-4">
             <div class="image-preview-static">
-                <img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(imageAlt)}" class="exercise-image">
+                <div class="image-frame">
+                    <img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(imageAlt)}" class="exercise-image">
+                    <div class="image-fallback hidden">Link sem imagem</div>
+                </div>
             </div>
         </div>
     `;
@@ -1075,6 +1087,8 @@ function openImageViewer({ url, alt = '', trigger = null }) {
     state.imageViewerTrigger = trigger || document.activeElement || null;
     imageViewerImg.src = url;
     imageViewerImg.alt = alt;
+    imageViewerImg.classList.remove('hidden');
+    imageViewerFallback.classList.add('hidden');
     imageViewerModal.classList.remove('hidden');
     document.body.style.overflow = 'hidden';
     closeImageViewerBtn.focus();
@@ -1088,6 +1102,8 @@ function closeImageViewer() {
     imageViewerModal.classList.add('hidden');
     imageViewerImg.removeAttribute('src');
     imageViewerImg.alt = '';
+    imageViewerImg.classList.remove('hidden');
+    imageViewerFallback.classList.add('hidden');
     document.body.style.overflow = '';
 
     if (state.imageViewerTrigger && typeof state.imageViewerTrigger.focus === 'function') {
@@ -1095,6 +1111,24 @@ function closeImageViewer() {
     }
 
     state.imageViewerTrigger = null;
+}
+
+function showImageLoadFallback(imageElement, fallbackElement) {
+    if (!imageElement || !fallbackElement) {
+        return;
+    }
+
+    imageElement.classList.add('hidden');
+    fallbackElement.classList.remove('hidden');
+}
+
+function hideImageLoadFallback(imageElement, fallbackElement) {
+    if (!imageElement || !fallbackElement) {
+        return;
+    }
+
+    imageElement.classList.remove('hidden');
+    fallbackElement.classList.add('hidden');
 }
 
 function renderAll() {
@@ -1357,6 +1391,16 @@ exercisesList.addEventListener('click', (event) => {
     });
 });
 
+exercisesList.addEventListener('error', (event) => {
+    const imageElement = event.target.closest('.exercise-image');
+    if (!imageElement) {
+        return;
+    }
+
+    const fallbackElement = imageElement.parentElement?.querySelector('.image-fallback');
+    showImageLoadFallback(imageElement, fallbackElement);
+}, true);
+
 fillExampleJsonBtn.addEventListener('click', () => {
     updateJsonEditorWithExample();
 });
@@ -1442,6 +1486,22 @@ workoutHeroImage.addEventListener('click', () => {
         alt: workoutHeroImage.alt || '',
         trigger: workoutHeroImage
     });
+});
+
+workoutHeroImage.addEventListener('load', () => {
+    hideImageLoadFallback(workoutHeroImage, workoutHeroFallback);
+});
+
+workoutHeroImage.addEventListener('error', () => {
+    showImageLoadFallback(workoutHeroImage, workoutHeroFallback);
+});
+
+imageViewerImg.addEventListener('load', () => {
+    hideImageLoadFallback(imageViewerImg, imageViewerFallback);
+});
+
+imageViewerImg.addEventListener('error', () => {
+    showImageLoadFallback(imageViewerImg, imageViewerFallback);
 });
 
 imageSearchModal.addEventListener('click', (event) => {

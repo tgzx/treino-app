@@ -156,7 +156,10 @@
             <h2 class="text-2xl font-bold" id="dayLabel">Treino de hoje</h2>
             <p id="muscleGroup" class="text-blue-500 font-semibold"></p>
             <div id="workoutHero" class="workout-hero hidden mt-4">
-                <img id="workoutHeroImage" alt="Imagem do treino" class="workout-hero-image">
+                <div class="image-frame">
+                    <img id="workoutHeroImage" alt="Imagem do treino" class="workout-hero-image">
+                    <div id="workoutHeroFallback" class="image-fallback hidden">Link sem imagem</div>
+                </div>
             </div>
         </div>
 
@@ -208,7 +211,10 @@
             <button id="closeImageViewerBtn" class="install-close" type="button" aria-label="Fechar visualizacao da imagem">X</button>
             <h2 id="imageViewerTitle" class="sr-only">Visualizacao ampliada da imagem</h2>
             <div class="image-viewer-stage">
-                <img id="imageViewerImg" alt="" class="image-viewer-img">
+                <div class="image-frame image-viewer-frame">
+                    <img id="imageViewerImg" alt="" class="image-viewer-img">
+                    <div id="imageViewerFallback" class="image-fallback hidden">Link sem imagem</div>
+                </div>
             </div>
         </div>
     </div>
