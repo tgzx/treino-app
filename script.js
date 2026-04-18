@@ -449,31 +449,6 @@ function getAudioContext() {
     return state.audioContext;
 }
 
-async function primeHtmlAudioElement() {
-    if (!beepSound) {
-        return false;
-    }
-
-    const previousMuted = beepSound.muted;
-    const previousVolume = beepSound.volume;
-
-    try {
-        beepSound.muted = true;
-        beepSound.volume = 0;
-        beepSound.currentTime = 0;
-        await beepSound.play();
-        beepSound.pause();
-        beepSound.currentTime = 0;
-        state.audioUnlocked = true;
-        return true;
-    } catch (error) {
-        return false;
-    } finally {
-        beepSound.muted = previousMuted;
-        beepSound.volume = previousVolume;
-    }
-}
-
 async function resumeAudioContext() {
     const audioContext = getAudioContext();
     if (!audioContext) {
@@ -493,31 +468,39 @@ async function resumeAudioContext() {
     }
 }
 
-async function unlockAudio() {
-    const [htmlUnlocked, contextUnlocked] = await Promise.allSettled([
-        primeHtmlAudioElement(),
-        resumeAudioContext()
-    ]);
-
-    state.audioUnlocked = state.audioUnlocked
-        || [htmlUnlocked, contextUnlocked].some((result) => result.status === 'fulfilled' && result.value);
-}
-
-async function playHtmlBeepSound() {
-    if (!beepSound) {
+function primeAudioContext(audioContext) {
+    if (!audioContext || audioContext.state !== 'running') {
         return false;
     }
 
     try {
-        beepSound.muted = false;
-        beepSound.volume = 1;
-        beepSound.playbackRate = 1;
-        beepSound.currentTime = 0;
-        await beepSound.play();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        const startAt = audioContext.currentTime + 0.001;
+        const endAt = startAt + 0.02;
+
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(440, startAt);
+        gainNode.gain.setValueAtTime(0.0001, startAt);
+
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+
+        oscillator.start(startAt);
+        oscillator.stop(endAt);
         return true;
     } catch (error) {
         return false;
     }
+}
+
+async function unlockAudio() {
+    const contextUnlocked = await resumeAudioContext();
+    const contextPrimed = primeAudioContext(getAudioContext());
+
+    state.audioUnlocked = state.audioUnlocked
+        || contextUnlocked
+        || contextPrimed;
 }
 
 async function playSynthBeepSound() {
@@ -536,26 +519,24 @@ async function playSynthBeepSound() {
         }
 
         const startAt = audioContext.currentTime + 0.01;
-        const gainNode = audioContext.createGain();
-        gainNode.gain.setValueAtTime(0.0001, startAt);
-        gainNode.connect(audioContext.destination);
-
-        const beepMoments = [
-            { offset: 0, duration: 0.2, frequency: 880 },
-            { offset: 0.24, duration: 0.28, frequency: 1174 }
+        const dingDongNotes = [
+            { offset: 0, duration: 0.16, frequency: 1046.5, type: 'triangle', volume: 0.34 },
+            { offset: 0.2, duration: 0.24, frequency: 783.99, type: 'triangle', volume: 0.38 }
         ];
 
-        beepMoments.forEach(({ offset, duration, frequency }) => {
+        dingDongNotes.forEach(({ offset, duration, frequency, type, volume }) => {
             const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
             const toneStart = startAt + offset;
             const toneEnd = toneStart + duration;
 
-            oscillator.type = 'triangle';
+            oscillator.type = type;
             oscillator.frequency.setValueAtTime(frequency, toneStart);
             oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
 
             gainNode.gain.setValueAtTime(0.0001, toneStart);
-            gainNode.gain.exponentialRampToValueAtTime(0.42, toneStart + 0.02);
+            gainNode.gain.exponentialRampToValueAtTime(volume, toneStart + 0.02);
             gainNode.gain.exponentialRampToValueAtTime(0.0001, toneEnd);
 
             oscillator.start(toneStart);
@@ -570,13 +551,6 @@ async function playSynthBeepSound() {
 }
 
 async function playBeepSound() {
-    const htmlAudioPlayed = await playHtmlBeepSound();
-    if (htmlAudioPlayed) {
-        state.pendingBeepSound = false;
-        state.audioUnlocked = true;
-        return true;
-    }
-
     const synthPlayed = await playSynthBeepSound();
     if (synthPlayed) {
         state.pendingBeepSound = false;
@@ -591,14 +565,6 @@ async function playBeepSound() {
 
 async function testSoundPlayback() {
     await unlockAudio();
-
-    const htmlAudioPlayed = await playHtmlBeepSound();
-    if (htmlAudioPlayed) {
-        if (navigator.vibrate) {
-            navigator.vibrate(120);
-        }
-        return true;
-    }
 
     const synthPlayed = await playSynthBeepSound();
     if (synthPlayed) {
