@@ -565,7 +565,7 @@ function playTimerCompletionAnimation(card) {
     card._timerFinishAnimationTimeoutId = window.setTimeout(() => {
         card.classList.remove('timer-finished');
         card._timerFinishAnimationTimeoutId = null;
-    }, 1400);
+    }, 2800);
 }
 
 function setConfigOpen(open) {

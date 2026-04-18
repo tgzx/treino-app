@@ -558,19 +558,19 @@ h4 {
 }
 
 .card.timer-finished {
-    animation: timer-finish-card 0.9s ease;
+    animation: timer-finish-card 1.8s ease;
 }
 
 .card.timer-finished .timer-finish-flash {
-    animation: timer-finish-fade 1.2s ease-out;
+    animation: timer-finish-fade 2.4s ease-out;
 }
 
 .card.timer-finished .timer-finish-flash::before {
-    animation: timer-finish-bloom 1.2s ease-out;
+    animation: timer-finish-bloom 2.4s ease-out;
 }
 
 .card.timer-finished .timer-finish-badge {
-    animation: timer-finish-badge 1.2s cubic-bezier(0.22, 1, 0.36, 1);
+    animation: timer-finish-badge 2.4s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 @keyframes timer-finish-card {
