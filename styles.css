@@ -195,6 +195,7 @@ h4 {
 .setting-card {
     display: block;
     padding: 1rem;
+    min-width: 0;
 }
 
 .config-form,
@@ -225,6 +226,8 @@ h4 {
 .field textarea,
 .json-editor {
     width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
     border: 1px solid var(--border);
     border-radius: 0.85rem;
     background: var(--card-bg);
@@ -252,6 +255,12 @@ h4 {
     min-height: 220px;
     font-family: Consolas, Monaco, monospace;
     resize: vertical;
+}
+
+#restSecondsInput {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
 }
 
 .manager-card,
@@ -846,6 +855,10 @@ button[onclick^="startTimer"][data-running="true"] {
 }
 
 @media (max-width: 640px) {
+    #restSecondsInput {
+        font-size: 16px;
+    }
+
     .manager-card,
     .weight-label,
     .exercise-editor-head {

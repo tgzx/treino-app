@@ -894,6 +894,13 @@ function syncWeightToggle() {
     restSecondsInput.value = String(getRestDurationSeconds());
 }
 
+function commitRestSecondsSetting(rawValue) {
+    state.settings.restSeconds = Math.max(5, parseInt(rawValue, 10) || DEFAULT_SETTINGS.restSeconds);
+    restSecondsInput.value = String(state.settings.restSeconds);
+    saveSettings();
+    renderExercises();
+}
+
 function setImageSearchProvider(provider) {
     state.imageSearch.provider = ['openverse', 'flickr'].includes(provider) ? provider : 'wikimedia';
     imageSearchProviders.querySelectorAll('[data-provider]').forEach((button) => {
@@ -1541,11 +1548,21 @@ wakeLockToggle.addEventListener('change', (event) => {
     syncWakeLock();
 });
 
+restSecondsInput.addEventListener('input', (event) => {
+    const nextValue = parseInt(event.target.value, 10);
+    if (!Number.isNaN(nextValue) && nextValue >= 5) {
+        state.settings.restSeconds = nextValue;
+        saveSettings();
+        renderExercises();
+    }
+});
+
 restSecondsInput.addEventListener('change', (event) => {
-    state.settings.restSeconds = Math.max(5, parseInt(event.target.value, 10) || DEFAULT_SETTINGS.restSeconds);
-    event.target.value = String(state.settings.restSeconds);
-    saveSettings();
-    renderExercises();
+    commitRestSecondsSetting(event.target.value);
+});
+
+restSecondsInput.addEventListener('blur', (event) => {
+    commitRestSecondsSetting(event.target.value);
 });
 
 addWorkoutBtn.addEventListener('click', () => {
