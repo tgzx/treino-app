@@ -12,7 +12,7 @@
     <link rel="apple-touch-icon" href="./appicon.png">
     <link rel="manifest" href="./manifest.webmanifest">
     <link rel="stylesheet" href="./styles.css">
-    <title>Treino ABCD - Lombar Sensível</title>
+    <title>Treino Personalizado</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 </head>
@@ -22,7 +22,7 @@
     <!-- Header & Theme Toggle -->
     <header
         class="p-4 flex justify-between items-center bg-white dark:bg-slate-900 shadow-sm sticky top-0 z-50 transition-colors">
-        <h1 class="text-xl font-bold">Lombar <span class="text-blue-500">Sensível</span></h1>
+        <h1 class="text-xl font-bold">Treino <span class="text-blue-500">Personalizado</span></h1>
         <button id="themeToggle" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-slate-800">
             <svg id="sunIcon" class="w-6 h-6 hidden" fill="currentColor" viewBox="0 0 20 20">
                 <path
@@ -50,7 +50,7 @@
         </div>
 
         <!-- Seletor de Dias -->
-        <div class="flex overflow-x-auto gap-2 mb-6 no-scrollbar py-2">
+        <div class="day-selector flex overflow-x-auto gap-3 mb-6 no-scrollbar">
             <button onclick="changeDay(1)" data-day="1"
                 class="day-btn px-4 py-2 rounded-full whitespace-nowrap bg-gray-200 dark:bg-slate-800 text-sm font-semibold">SEG
                 - A</button>

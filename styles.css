@@ -185,6 +185,7 @@ h4 {
     border: 1px solid var(--day-border);
     box-shadow: 0 2px 6px rgba(15, 23, 42, 0.05);
     transition: all 0.2s ease;
+    overflow: visible;
 }
 
 .day-btn:hover {
@@ -200,7 +201,7 @@ h4 {
     background: linear-gradient(135deg, var(--accent), var(--accent-strong)) !important;
     color: #ffffff !important;
     border-color: transparent !important;
-    box-shadow: 0 8px 22px var(--accent-ring);
+    box-shadow: 0 8px 7px var(--accent-ring);
 }
 
 .day-btn.bg-blue-500::after,
@@ -208,17 +209,21 @@ h4 {
 .day-btn.bg-blue-500.text-white::after {
     content: "HOJE";
     position: absolute;
-    top: -8px;
-    right: -4px;
-    font-size: 10px;
+    top: -14px;
+    right: 50%;
+    transform: translateX(50%);
+    font-size: 9px;
     font-weight: 800;
     letter-spacing: 0.04em;
-    padding: 2px 7px;
+    line-height: 1;
+    padding: 4px 8px;
     border-radius: 999px;
     background: #ffffff;
     color: var(--accent-strong);
     border: 1px solid rgba(255, 255, 255, 0.85);
     box-shadow: 0 6px 14px rgba(15, 23, 42, 0.16);
+    white-space: nowrap;
+    z-index: 1;
 }
 
 .dark-mode .day-btn.bg-blue-500::after,
@@ -307,6 +312,13 @@ button[onclick^="startTimer"][data-running="true"] {
 .no-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
+}
+
+.day-selector {
+    padding-top: 1.25rem;
+    padding-bottom: 0.75rem;
+    padding-inline: 0.125rem;
+    overflow-y: visible;
 }
 
 @keyframes pulse-ring {
