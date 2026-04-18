@@ -83,7 +83,6 @@ const state = {
     swaps: {},
     timers: {},
     audioUnlocked: false,
-    pendingBeepSound: false,
     audioContext: null,
     settings: loadSettings(),
     workouts: loadWorkouts(),
@@ -106,7 +105,6 @@ const state = {
 const themeToggle = document.getElementById('themeToggle');
 const sunIcon = document.getElementById('sunIcon');
 const moonIcon = document.getElementById('moonIcon');
-const beepSound = document.getElementById('beepSound');
 const daySelector = document.getElementById('daySelector');
 const exercisesList = document.getElementById('exercisesList');
 const workoutTitle = document.getElementById('workoutTitle');
@@ -553,12 +551,10 @@ async function playSynthBeepSound() {
 async function playBeepSound() {
     const synthPlayed = await playSynthBeepSound();
     if (synthPlayed) {
-        state.pendingBeepSound = false;
         state.audioUnlocked = true;
         return true;
     }
 
-    state.pendingBeepSound = true;
     console.log('Erro ao tocar som: interacao necessaria');
     return false;
 }
@@ -583,14 +579,6 @@ function triggerTimerCompletionFeedback() {
     if (navigator.vibrate) {
         navigator.vibrate([160, 80, 220]);
     }
-}
-
-function flushPendingBeepSound() {
-    if (!state.pendingBeepSound || document.hidden) {
-        return;
-    }
-
-    playBeepSound();
 }
 
 function setConfigOpen(open) {
@@ -1432,7 +1420,7 @@ function applySwap(exerciseId, newName) {
     renderExercises();
 }
 
-function startTimer(button) {
+function startTimerLegacy(button) {
     const card = button.closest('.card');
     const progressBar = card.querySelector('.timer-progress');
 
@@ -1901,25 +1889,20 @@ document.addEventListener('visibilitychange', () => {
     }
 
     syncWakeLock();
-    flushPendingBeepSound();
 
     Object.keys(state.timers).forEach((exerciseId) => {
         syncTimerUI(exerciseId, true);
     });
 });
 
-window.addEventListener('focus', flushPendingBeepSound);
 window.addEventListener('pointerdown', () => {
     unlockAudio();
-    flushPendingBeepSound();
 }, { passive: true });
 window.addEventListener('touchend', () => {
     unlockAudio();
-    flushPendingBeepSound();
 }, { passive: true });
 window.addEventListener('keydown', () => {
     unlockAudio();
-    flushPendingBeepSound();
 });
 
 window.addEventListener('beforeinstallprompt', (event) => {
