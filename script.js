@@ -2,7 +2,8 @@ const STORAGE_KEYS = {
     workouts: 'treino-app-workouts-v2',
     settings: 'treino-app-settings-v2',
     weights: 'treino-app-weights-v2',
-    theme: 'theme'
+    theme: 'theme',
+    installPromptDismissedAt: 'treino-app-install-dismissed-at'
 };
 
 const DEFAULT_SETTINGS = {
@@ -82,7 +83,9 @@ const state = {
     workouts: loadWorkouts(),
     weights: loadWeights(),
     editingWorkoutId: null,
-    configOpen: false
+    configOpen: false,
+    deferredInstallPrompt: null,
+    installPromptVisible: false
 };
 
 const themeToggle = document.getElementById('themeToggle');
@@ -117,6 +120,11 @@ const workoutDayNumberInput = document.getElementById('workoutDayNumber');
 const workoutNameInput = document.getElementById('workoutName');
 const workoutDescInput = document.getElementById('workoutDesc');
 const workoutImageUrlInput = document.getElementById('workoutImageUrl');
+const installPrompt = document.getElementById('installPrompt');
+const installPromptText = document.getElementById('installPromptText');
+const installAppBtn = document.getElementById('installAppBtn');
+const installLaterBtn = document.getElementById('installLaterBtn');
+const dismissInstallPromptBtn = document.getElementById('dismissInstallPromptBtn');
 
 function cloneDefaultWorkouts() {
     return normalizeWorkouts(JSON.parse(JSON.stringify(DEFAULT_WORKOUTS)));
@@ -260,6 +268,65 @@ function encodeSwapPayload(payload) {
 
 function decodeSwapPayload(payload) {
     return JSON.parse(decodeURIComponent(payload));
+}
+
+function isIosDevice() {
+    return /iphone|ipad|ipod/i.test(window.navigator.userAgent);
+}
+
+function isStandaloneMode() {
+    return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+}
+
+function wasInstallPromptDismissedRecently() {
+    const dismissedAt = Number(localStorage.getItem(STORAGE_KEYS.installPromptDismissedAt) || '0');
+    const threeDays = 1000 * 60 * 60 * 24 * 3;
+    return dismissedAt > 0 && (Date.now() - dismissedAt) < threeDays;
+}
+
+function rememberInstallDismiss() {
+    localStorage.setItem(STORAGE_KEYS.installPromptDismissedAt, String(Date.now()));
+}
+
+function showInstallPrompt(options = {}) {
+    if (!installPrompt || state.installPromptVisible || isStandaloneMode()) {
+        return;
+    }
+
+    if (!options.force && wasInstallPromptDismissedRecently()) {
+        return;
+    }
+
+    installPromptText.textContent = options.message || 'Adicione o Treino Personalizado a tela inicial para abrir como app.';
+    installAppBtn.textContent = options.buttonLabel || 'Instalar app';
+    installAppBtn.dataset.mode = options.mode || 'install';
+    installPrompt.classList.remove('hidden');
+    state.installPromptVisible = true;
+}
+
+function hideInstallPrompt(rememberDismiss = false) {
+    if (!installPrompt) {
+        return;
+    }
+
+    installPrompt.classList.add('hidden');
+    state.installPromptVisible = false;
+
+    if (rememberDismiss) {
+        rememberInstallDismiss();
+    }
+}
+
+async function registerServiceWorker() {
+    if (!('serviceWorker' in navigator)) {
+        return;
+    }
+
+    try {
+        await navigator.serviceWorker.register('./sw.js');
+    } catch (error) {
+        console.error('Erro ao registrar service worker:', error);
+    }
 }
 
 function toggleTheme() {
@@ -864,6 +931,51 @@ importJsonBtn.addEventListener('click', () => {
 
 workoutForm.addEventListener('submit', handleWorkoutSubmit);
 
+installAppBtn.addEventListener('click', async () => {
+    if (installAppBtn.dataset.mode === 'ios') {
+        hideInstallPrompt(true);
+        return;
+    }
+
+    if (!state.deferredInstallPrompt) {
+        hideInstallPrompt(true);
+        return;
+    }
+
+    state.deferredInstallPrompt.prompt();
+    const choiceResult = await state.deferredInstallPrompt.userChoice;
+
+    if (choiceResult.outcome !== 'accepted') {
+        rememberInstallDismiss();
+    }
+
+    state.deferredInstallPrompt = null;
+    hideInstallPrompt(false);
+});
+
+installLaterBtn.addEventListener('click', () => {
+    hideInstallPrompt(true);
+});
+
+dismissInstallPromptBtn.addEventListener('click', () => {
+    hideInstallPrompt(true);
+});
+
+window.addEventListener('beforeinstallprompt', (event) => {
+    event.preventDefault();
+    state.deferredInstallPrompt = event;
+    showInstallPrompt({
+        mode: 'install',
+        buttonLabel: 'Instalar app',
+        message: 'Instale o app para abrir direto da tela inicial e usar com cara de aplicativo.'
+    });
+});
+
+window.addEventListener('appinstalled', () => {
+    state.deferredInstallPrompt = null;
+    hideInstallPrompt(false);
+});
+
 themeToggle.addEventListener('click', toggleTheme);
 if (localStorage.getItem(STORAGE_KEYS.theme) === 'dark') {
     toggleTheme();
@@ -885,4 +997,13 @@ window.onload = () => {
     updateJsonEditorWithExample();
     state.activeWorkoutId = getInitialWorkoutId();
     renderAll();
+    registerServiceWorker();
+
+    if (isIosDevice() && !isStandaloneMode()) {
+        showInstallPrompt({
+            mode: 'ios',
+            buttonLabel: 'Entendi',
+            message: 'No iPhone/iPad, abra no Safari, toque em Compartilhar e depois em Adicionar a Tela de Inicio.'
+        });
+    }
 };

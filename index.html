@@ -158,6 +158,19 @@
         </div>
     </main>
 
+    <div id="installPrompt" class="install-prompt hidden" role="dialog" aria-modal="true" aria-labelledby="installPromptTitle">
+        <div class="install-card">
+            <button id="dismissInstallPromptBtn" class="install-close" type="button" aria-label="Fechar aviso de instalacao">×</button>
+            <p class="install-eyebrow">Acesso rapido</p>
+            <h2 id="installPromptTitle" class="install-title">Instalar app no celular?</h2>
+            <p id="installPromptText" class="install-copy">Adicione o Treino Personalizado a tela inicial para abrir como app.</p>
+            <div class="install-actions">
+                <button id="installAppBtn" class="save-btn" type="button">Instalar app</button>
+                <button id="installLaterBtn" class="config-btn config-btn-secondary" type="button">Depois</button>
+            </div>
+        </div>
+    </div>
+
     <audio id="beepSound" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3"></audio>
 
     <script src="./script.js"></script>

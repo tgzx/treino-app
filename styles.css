@@ -538,6 +538,74 @@ button[onclick^="startTimer"][data-running="true"] {
     outline: none;
 }
 
+.install-prompt {
+    position: fixed;
+    inset: 0;
+    z-index: 70;
+    display: flex;
+    align-items: end;
+    justify-content: center;
+    padding: 1rem;
+    background: rgba(15, 23, 42, 0.42);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+}
+
+.install-card {
+    position: relative;
+    width: min(100%, 420px);
+    padding: 1.2rem;
+    border-radius: 1.3rem;
+    border: 1px solid var(--border);
+    background: color-mix(in srgb, var(--card-bg) 92%, transparent);
+    box-shadow: 0 22px 50px rgba(15, 23, 42, 0.2);
+}
+
+.install-close {
+    position: absolute;
+    top: 0.8rem;
+    right: 0.8rem;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--card-bg-soft);
+    color: var(--text-soft);
+    font-size: 1.15rem;
+    line-height: 1;
+}
+
+.install-eyebrow {
+    margin: 0 0 0.35rem;
+    color: var(--accent);
+    font-size: 0.72rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.install-title {
+    margin: 0;
+    font-size: 1.25rem;
+}
+
+.install-copy {
+    margin: 0.55rem 0 0;
+    color: var(--text-soft);
+    line-height: 1.5;
+}
+
+.install-actions {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 1rem;
+}
+
+.install-actions .save-btn,
+.install-actions .config-btn {
+    flex: 1;
+}
+
 @media (max-width: 640px) {
     .manager-card,
     .weight-label,
@@ -552,6 +620,10 @@ button[onclick^="startTimer"][data-running="true"] {
 
     .settings-grid {
         grid-template-columns: 1fr;
+    }
+
+    .install-actions {
+        flex-direction: column;
     }
 }
 
