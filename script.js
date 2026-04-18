@@ -83,7 +83,8 @@ const state = {
     swaps: {},
     timers: {},
     audioUnlocked: false,
-    audioContext: null,
+    beepAudio: null,
+    generatedBeepUrl: null,
     settings: loadSettings(),
     workouts: loadWorkouts(),
     weights: loadWeights(),
@@ -433,114 +434,105 @@ function toggleTheme() {
     localStorage.setItem(STORAGE_KEYS.theme, isDark ? 'dark' : 'light');
 }
 
-function getAudioContext() {
-    if (state.audioContext) {
-        return state.audioContext;
-    }
-
-    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContextClass) {
-        return null;
-    }
-
-    state.audioContext = new AudioContextClass();
-    return state.audioContext;
+function clampSample(value) {
+    return Math.max(-1, Math.min(1, value));
 }
 
-async function resumeAudioContext() {
-    const audioContext = getAudioContext();
-    if (!audioContext) {
-        return false;
+function writeAsciiToDataView(view, offset, text) {
+    for (let index = 0; index < text.length; index += 1) {
+        view.setUint8(offset + index, text.charCodeAt(index));
+    }
+}
+
+function buildGeneratedBeepUrl() {
+    if (state.generatedBeepUrl) {
+        return state.generatedBeepUrl;
     }
 
-    try {
-        if (audioContext.state === 'suspended') {
-            await audioContext.resume();
+    const sampleRate = 44100;
+    const notePlan = [
+        { durationSeconds: 0.18, frequency: 1046.5, volume: 0.75 },
+        { durationSeconds: 0.08, frequency: 0, volume: 0 },
+        { durationSeconds: 0.24, frequency: 783.99, volume: 0.82 }
+    ];
+    const totalSamples = notePlan.reduce((sum, note) => sum + Math.floor(note.durationSeconds * sampleRate), 0);
+    const pcmData = new Int16Array(totalSamples);
+    let sampleOffset = 0;
+
+    notePlan.forEach(({ durationSeconds, frequency, volume }) => {
+        const noteSamples = Math.floor(durationSeconds * sampleRate);
+        for (let sampleIndex = 0; sampleIndex < noteSamples; sampleIndex += 1) {
+            const globalIndex = sampleOffset + sampleIndex;
+            if (!frequency) {
+                pcmData[globalIndex] = 0;
+                continue;
+            }
+
+            const progress = noteSamples > 1 ? sampleIndex / (noteSamples - 1) : 1;
+            const fadeIn = Math.min(1, progress / 0.12);
+            const fadeOut = Math.min(1, (1 - progress) / 0.22);
+            const envelope = Math.min(fadeIn, fadeOut);
+            const time = sampleIndex / sampleRate;
+            const sampleValue = (
+                Math.sin(2 * Math.PI * frequency * time)
+                + 0.35 * Math.sin(2 * Math.PI * frequency * 2 * time)
+            ) * 0.5 * volume * envelope;
+
+            pcmData[globalIndex] = Math.round(clampSample(sampleValue) * 32767);
         }
 
-        const resumed = audioContext.state === 'running';
-        state.audioUnlocked = state.audioUnlocked || resumed;
-        return resumed;
-    } catch (error) {
-        return false;
-    }
+        sampleOffset += noteSamples;
+    });
+
+    const buffer = new ArrayBuffer(44 + (pcmData.length * 2));
+    const view = new DataView(buffer);
+    writeAsciiToDataView(view, 0, 'RIFF');
+    view.setUint32(4, 36 + (pcmData.length * 2), true);
+    writeAsciiToDataView(view, 8, 'WAVE');
+    writeAsciiToDataView(view, 12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, 1, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * 2, true);
+    view.setUint16(32, 2, true);
+    view.setUint16(34, 16, true);
+    writeAsciiToDataView(view, 36, 'data');
+    view.setUint32(40, pcmData.length * 2, true);
+
+    pcmData.forEach((sample, index) => {
+        view.setInt16(44 + (index * 2), sample, true);
+    });
+
+    const blob = new Blob([buffer], { type: 'audio/wav' });
+    state.generatedBeepUrl = URL.createObjectURL(blob);
+    return state.generatedBeepUrl;
 }
 
-function primeAudioContext(audioContext) {
-    if (!audioContext || audioContext.state !== 'running') {
-        return false;
+function createBeepAudio() {
+    if (state.beepAudio) {
+        return state.beepAudio;
     }
 
-    try {
-        const oscillator = audioContext.createOscillator();
-        const gainNode = audioContext.createGain();
-        const startAt = audioContext.currentTime + 0.001;
-        const endAt = startAt + 0.02;
-
-        oscillator.type = 'sine';
-        oscillator.frequency.setValueAtTime(440, startAt);
-        gainNode.gain.setValueAtTime(0.0001, startAt);
-
-        oscillator.connect(gainNode);
-        gainNode.connect(audioContext.destination);
-
-        oscillator.start(startAt);
-        oscillator.stop(endAt);
-        return true;
-    } catch (error) {
-        return false;
-    }
+    const audio = new Audio(buildGeneratedBeepUrl());
+    audio.preload = 'auto';
+    audio.playsInline = true;
+    audio.volume = 1;
+    state.beepAudio = audio;
+    return audio;
 }
 
 async function unlockAudio() {
-    const contextUnlocked = await resumeAudioContext();
-    const contextPrimed = primeAudioContext(getAudioContext());
-
-    state.audioUnlocked = state.audioUnlocked
-        || contextUnlocked
-        || contextPrimed;
-}
-
-async function playSynthBeepSound() {
-    const audioContext = getAudioContext();
-    if (!audioContext) {
-        return false;
-    }
-
     try {
-        if (audioContext.state === 'suspended') {
-            await audioContext.resume();
-        }
-
-        if (audioContext.state !== 'running') {
-            return false;
-        }
-
-        const startAt = audioContext.currentTime + 0.01;
-        const dingDongNotes = [
-            { offset: 0, duration: 0.16, frequency: 1046.5, type: 'triangle', volume: 0.34 },
-            { offset: 0.2, duration: 0.24, frequency: 783.99, type: 'triangle', volume: 0.38 }
-        ];
-
-        dingDongNotes.forEach(({ offset, duration, frequency, type, volume }) => {
-            const oscillator = audioContext.createOscillator();
-            const gainNode = audioContext.createGain();
-            const toneStart = startAt + offset;
-            const toneEnd = toneStart + duration;
-
-            oscillator.type = type;
-            oscillator.frequency.setValueAtTime(frequency, toneStart);
-            oscillator.connect(gainNode);
-            gainNode.connect(audioContext.destination);
-
-            gainNode.gain.setValueAtTime(0.0001, toneStart);
-            gainNode.gain.exponentialRampToValueAtTime(volume, toneStart + 0.02);
-            gainNode.gain.exponentialRampToValueAtTime(0.0001, toneEnd);
-
-            oscillator.start(toneStart);
-            oscillator.stop(toneEnd + 0.02);
-        });
-
+        const audio = createBeepAudio();
+        audio.muted = true;
+        audio.volume = 0;
+        audio.currentTime = 0;
+        await audio.play();
+        audio.pause();
+        audio.currentTime = 0;
+        audio.muted = false;
+        audio.volume = 1;
         state.audioUnlocked = true;
         return true;
     } catch (error) {
@@ -549,28 +541,28 @@ async function playSynthBeepSound() {
 }
 
 async function playBeepSound() {
-    const synthPlayed = await playSynthBeepSound();
-    if (synthPlayed) {
+    try {
+        const audio = createBeepAudio();
+        audio.muted = false;
+        audio.volume = 1;
+        audio.currentTime = 0;
+        await audio.play();
         state.audioUnlocked = true;
         return true;
+    } catch (error) {
+        console.log('Erro ao tocar som: interacao necessaria');
+        return false;
     }
-
-    console.log('Erro ao tocar som: interacao necessaria');
-    return false;
 }
 
 async function testSoundPlayback() {
-    await unlockAudio();
+    const played = await playBeepSound();
 
-    const synthPlayed = await playSynthBeepSound();
-    if (synthPlayed) {
-        if (navigator.vibrate) {
-            navigator.vibrate(120);
-        }
-        return true;
+    if (played && navigator.vibrate) {
+        navigator.vibrate(120);
     }
 
-    return false;
+    return played;
 }
 
 function triggerTimerCompletionFeedback() {
@@ -1421,6 +1413,7 @@ function applySwap(exerciseId, newName) {
 }
 
 function startTimerLegacy(button) {
+    return startTimer(button);
     const card = button.closest('.card');
     const progressBar = card.querySelector('.timer-progress');
 
@@ -1523,13 +1516,13 @@ function syncTimerUI(exerciseId, shouldPlaySound = true) {
     updateTimerButtonUI(button, progressBar, timeLeft, millisecondsLeft);
 }
 
-function startTimer(button) {
+async function startTimer(button) {
     const card = button.closest('.card');
     const progressBar = card?.querySelector('.timer-progress');
     const exerciseId = button.dataset.exerciseId;
     const restDurationSeconds = getRestDurationSeconds();
 
-    unlockAudio();
+    await unlockAudio();
 
     if (!exerciseId || !progressBar || button.dataset.running === 'true') {
         return;
@@ -1691,7 +1684,7 @@ addWorkoutBtn.addEventListener('click', () => {
 });
 
 testSoundBtn.addEventListener('click', async () => {
-    testSoundPlayback();
+    await testSoundPlayback();
 });
 
 resetDefaultsBtn.addEventListener('click', () => {
