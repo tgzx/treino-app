@@ -1895,16 +1895,6 @@ document.addEventListener('visibilitychange', () => {
     });
 });
 
-window.addEventListener('pointerdown', () => {
-    unlockAudio();
-}, { passive: true });
-window.addEventListener('touchend', () => {
-    unlockAudio();
-}, { passive: true });
-window.addEventListener('keydown', () => {
-    unlockAudio();
-});
-
 window.addEventListener('beforeinstallprompt', (event) => {
     event.preventDefault();
     state.deferredInstallPrompt = event;
