@@ -516,6 +516,7 @@ function renderExercises() {
     workout.exercises.forEach((exercise) => {
         const card = document.createElement('div');
         card.className = 'card p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden';
+        card.dataset.exerciseId = exercise.id;
 
         const exerciseProgress = state.progress[exercise.id] || 0;
         const selectedSwap = state.swaps[exercise.id] || { name: exercise.name, imageUrl: exercise.imageUrl || '' };
@@ -546,9 +547,9 @@ function renderExercises() {
             ${exerciseImage}
 
             <div class="flex items-center gap-4 mb-4">
-                <div class="flex gap-2" onclick="incrementSeries('${exercise.id}', ${exercise.sets})">
+                <div class="flex gap-2" data-series-group="${exercise.id}" onclick="incrementSeries('${exercise.id}', ${exercise.sets})">
                     ${Array.from({ length: exercise.sets }).map((_, index) => `
-                        <div class="series-dot ${index < exerciseProgress ? 'active' : ''}">
+                        <div class="series-dot ${index < exerciseProgress ? 'active' : ''}" data-series-index="${index}">
                             ${index < exerciseProgress ? '✓' : index + 1}
                         </div>
                     `).join('')}
@@ -1145,6 +1146,27 @@ function changeWorkout(workoutId) {
     ensureDayButtonVisibility('smooth');
 }
 
+function updateExerciseProgressUI(exerciseId, total) {
+    const group = exercisesList.querySelector(`[data-series-group="${exerciseId}"]`);
+    if (!group) {
+        renderExercises();
+        return;
+    }
+
+    const dots = group.querySelectorAll('.series-dot');
+    if (dots.length !== total) {
+        renderExercises();
+        return;
+    }
+
+    const progress = state.progress[exerciseId] || 0;
+    dots.forEach((dot, index) => {
+        const isActive = index < progress;
+        dot.classList.toggle('active', isActive);
+        dot.textContent = isActive ? 'âœ“' : String(index + 1);
+    });
+}
+
 function incrementSeries(exerciseId, total) {
     if (!state.progress[exerciseId]) {
         state.progress[exerciseId] = 0;
@@ -1156,7 +1178,7 @@ function incrementSeries(exerciseId, total) {
         state.progress[exerciseId] = 0;
     }
 
-    renderExercises();
+    updateExerciseProgressUI(exerciseId, total);
 
     if (state.progress[exerciseId] === total) {
         confetti({
