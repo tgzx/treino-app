@@ -777,7 +777,7 @@ function startTimer(button) {
             button.classList.remove('opacity-50');
             progressBar.style.width = '0%';
             beepSound.currentTime = 0;
-            beepSound.play().catch(() => console.log('Erro ao tocar som: interacao necessaria'));
+            beepSound.play().catch(() => console.log('Erro ao tocar som: interação necessaria'));
         }
     }, 1000);
 }
