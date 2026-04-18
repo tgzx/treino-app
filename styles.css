@@ -2,6 +2,7 @@
 
 :root {
     --bg-color: #f4f7fb;
+    --image-card-max-size: 360px;
     --card-bg: #ffffff;
     --card-bg-soft: #f8fafc;
     --surface-muted: #eef2f7;
@@ -276,9 +277,9 @@ h4 {
     width: 58px;
     height: 58px;
     border-radius: 1rem;
-    object-fit: cover;
+    object-fit: contain;
     border: 1px solid var(--border);
-    background: var(--surface-muted);
+    background: transparent;
 }
 
 .manager-thumb-placeholder {
@@ -387,28 +388,58 @@ h4 {
     border-radius: 1.25rem;
     overflow: hidden;
     border: 1px solid var(--border);
-    background: var(--card-bg-soft);
+    background: color-mix(in srgb, var(--card-bg-soft) 70%, transparent);
 }
 
 .workout-hero-image {
     width: 100%;
-    height: 180px;
-    object-fit: cover;
+    aspect-ratio: 1 / 1;
+    max-height: min(72vw, var(--image-card-max-size));
+    object-fit: contain;
     display: block;
 }
 
+.workout-hero-image.is-expandable {
+    cursor: zoom-in;
+}
+
 .exercise-media {
+    width: 100%;
+    max-width: min(100%, var(--image-card-max-size));
+    aspect-ratio: 1 / 1;
+    display: grid;
+    place-items: center;
+    margin-inline: auto;
     border-radius: 1rem;
     overflow: hidden;
     border: 1px solid var(--border);
-    background: var(--card-bg-soft);
+    background: transparent;
 }
 
 .exercise-image {
     width: 100%;
-    height: 150px;
-    object-fit: cover;
+    height: 100%;
+    object-fit: contain;
     display: block;
+}
+
+.image-preview-trigger {
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    background: transparent;
+    border: none;
+    cursor: zoom-in;
+}
+
+.image-preview-static {
+    width: 100%;
+    height: 100%;
+}
+
+.image-preview-trigger:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 4px;
 }
 
 .series-dot {
@@ -497,9 +528,10 @@ button[onclick^="startTimer"][data-running="true"] {
     width: 46px;
     height: 46px;
     border-radius: 0.8rem;
-    object-fit: cover;
+    object-fit: contain;
     flex-shrink: 0;
     border: 1px solid var(--border);
+    background: transparent;
 }
 
 [id^="swaps-"] button:hover {
@@ -613,6 +645,46 @@ button[onclick^="startTimer"][data-running="true"] {
     width: min(100%, 720px);
     max-height: min(82vh, 860px);
     overflow: auto;
+}
+
+.image-viewer-modal {
+    padding: 0.75rem;
+}
+
+.image-viewer-card {
+    width: min(100%, 960px);
+    height: min(100%, 92vh);
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+}
+
+.image-viewer-stage {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    place-items: center;
+}
+
+.image-viewer-img {
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    display: block;
+}
+
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
 }
 
 .image-search-providers,

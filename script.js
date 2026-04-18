@@ -7,7 +7,8 @@ const STORAGE_KEYS = {
 };
 
 const DEFAULT_SETTINGS = {
-    enableWeightTracking: false
+    enableWeightTracking: false,
+    enableImageExpansion: true
 };
 
 const DEFAULT_WORKOUTS = [
@@ -92,7 +93,8 @@ const state = {
         offset: 0,
         pageSize: 10,
         hasMore: false
-    }
+    },
+    imageViewerTrigger: null
 };
 
 const themeToggle = document.getElementById('themeToggle');
@@ -110,6 +112,7 @@ const workoutHeroImage = document.getElementById('workoutHeroImage');
 const toggleConfigBtn = document.getElementById('toggleConfigBtn');
 const configPanel = document.getElementById('configPanel');
 const weightTrackingToggle = document.getElementById('weightTrackingToggle');
+const imageExpansionToggle = document.getElementById('imageExpansionToggle');
 const workoutManagerList = document.getElementById('workoutManagerList');
 const workoutForm = document.getElementById('workoutForm');
 const workoutFormTitle = document.getElementById('workoutFormTitle');
@@ -141,6 +144,9 @@ const imageSearchStatus = document.getElementById('imageSearchStatus');
 const imageSearchResults = document.getElementById('imageSearchResults');
 const imageSearchProviders = document.getElementById('imageSearchProviders');
 const loadMoreImageResultsBtn = document.getElementById('loadMoreImageResultsBtn');
+const imageViewerModal = document.getElementById('imageViewerModal');
+const closeImageViewerBtn = document.getElementById('closeImageViewerBtn');
+const imageViewerImg = document.getElementById('imageViewerImg');
 
 const WIKIMEDIA_IMAGE_SEARCH_ENDPOINT = 'https://commons.wikimedia.org/w/api.php';
 const OPENVERSE_IMAGE_SEARCH_ENDPOINT = 'https://api.openverse.org/v1/images/';
@@ -174,7 +180,8 @@ function saveJson(key, value) {
 function loadSettings() {
     const settings = loadJson(STORAGE_KEYS.settings, DEFAULT_SETTINGS);
     return {
-        enableWeightTracking: Boolean(settings.enableWeightTracking)
+        enableWeightTracking: Boolean(settings.enableWeightTracking),
+        enableImageExpansion: settings.enableImageExpansion !== false
     };
 }
 
@@ -427,15 +434,43 @@ function renderWorkoutHero(workout) {
     if (workout && workout.imageUrl) {
         workoutHeroImage.src = workout.imageUrl;
         workoutHeroImage.alt = `Imagem do treino ${workout.name}`;
+        workoutHeroImage.dataset.fullImageUrl = workout.imageUrl;
+        workoutHeroImage.classList.toggle('is-expandable', state.settings.enableImageExpansion);
         workoutHero.classList.remove('hidden');
     } else {
         workoutHeroImage.removeAttribute('src');
+        workoutHeroImage.removeAttribute('data-full-image-url');
+        workoutHeroImage.classList.remove('is-expandable');
         workoutHero.classList.add('hidden');
     }
 }
 
 function getWeightValue(exerciseId) {
     return state.weights[exerciseId] || '';
+}
+
+function renderExercisePreviewImage(imageUrl, imageAlt) {
+    if (!imageUrl) {
+        return '';
+    }
+
+    if (state.settings.enableImageExpansion) {
+        return `
+            <div class="exercise-media mb-4">
+                <button type="button" class="image-preview-trigger" data-action="open-image-viewer" data-image-url="${escapeHtml(imageUrl)}" data-image-alt="${escapeHtml(imageAlt)}">
+                    <img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(imageAlt)}" class="exercise-image">
+                </button>
+            </div>
+        `;
+    }
+
+    return `
+        <div class="exercise-media mb-4">
+            <div class="image-preview-static">
+                <img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(imageAlt)}" class="exercise-image">
+            </div>
+        </div>
+    `;
 }
 
 function renderExercises() {
@@ -473,11 +508,7 @@ function renderExercises() {
                 </label>
             </div>
         ` : '';
-        const exerciseImage = selectedSwap.imageUrl ? `
-            <div class="exercise-media mb-4">
-                <img src="${escapeHtml(selectedSwap.imageUrl)}" alt="${escapeHtml(selectedSwap.name)}" class="exercise-image">
-            </div>
-        ` : '';
+        const exerciseImage = renderExercisePreviewImage(selectedSwap.imageUrl, selectedSwap.name);
 
         card.innerHTML = `
             <div class="flex justify-between items-start mb-4 gap-3">
@@ -740,6 +771,7 @@ function importJsonConfig() {
 
 function syncWeightToggle() {
     weightTrackingToggle.checked = state.settings.enableWeightTracking;
+    imageExpansionToggle.checked = state.settings.enableImageExpansion;
 }
 
 function setImageSearchProvider(provider) {
@@ -1024,6 +1056,36 @@ function applyImageSearchResult(url) {
     closeImageSearch();
 }
 
+function openImageViewer({ url, alt = '', trigger = null }) {
+    if (!url || !imageViewerModal || !imageViewerImg) {
+        return;
+    }
+
+    state.imageViewerTrigger = trigger || document.activeElement || null;
+    imageViewerImg.src = url;
+    imageViewerImg.alt = alt;
+    imageViewerModal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+    closeImageViewerBtn.focus();
+}
+
+function closeImageViewer() {
+    if (!imageViewerModal || imageViewerModal.classList.contains('hidden')) {
+        return;
+    }
+
+    imageViewerModal.classList.add('hidden');
+    imageViewerImg.removeAttribute('src');
+    imageViewerImg.alt = '';
+    document.body.style.overflow = '';
+
+    if (state.imageViewerTrigger && typeof state.imageViewerTrigger.focus === 'function') {
+        state.imageViewerTrigger.focus();
+    }
+
+    state.imageViewerTrigger = null;
+}
+
 function renderAll() {
     renderDayButtons();
     renderExercises();
@@ -1222,6 +1284,13 @@ weightTrackingToggle.addEventListener('change', (event) => {
     renderExercises();
 });
 
+imageExpansionToggle.addEventListener('change', (event) => {
+    state.settings.enableImageExpansion = event.target.checked;
+    saveSettings();
+    renderExercises();
+    renderWorkoutHero(getWorkoutById(state.activeWorkoutId));
+});
+
 addWorkoutBtn.addEventListener('click', () => {
     openWorkoutForm(createDraftWorkout());
     setConfigOpen(true);
@@ -1262,6 +1331,19 @@ exerciseEditorList.addEventListener('click', (event) => {
     const input = exerciseEditorList.querySelector(`[data-exercise-id="${exerciseId}"][data-field="imageUrl"]`);
     const nameInput = exerciseEditorList.querySelector(`[data-exercise-id="${exerciseId}"][data-field="name"]`);
     openImageSearch(input, nameInput?.value.trim() || '');
+});
+
+exercisesList.addEventListener('click', (event) => {
+    const trigger = event.target.closest('[data-action="open-image-viewer"]');
+    if (!trigger) {
+        return;
+    }
+
+    openImageViewer({
+        url: trigger.dataset.imageUrl,
+        alt: trigger.dataset.imageAlt || '',
+        trigger
+    });
 });
 
 fillExampleJsonBtn.addEventListener('click', () => {
@@ -1334,15 +1416,45 @@ loadMoreImageResultsBtn.addEventListener('click', () => {
     searchImages({ append: true });
 });
 
+workoutHeroImage.addEventListener('click', () => {
+    if (!state.settings.enableImageExpansion) {
+        return;
+    }
+
+    const imageUrl = workoutHeroImage.dataset.fullImageUrl;
+    if (!imageUrl) {
+        return;
+    }
+
+    openImageViewer({
+        url: imageUrl,
+        alt: workoutHeroImage.alt || '',
+        trigger: workoutHeroImage
+    });
+});
+
 imageSearchModal.addEventListener('click', (event) => {
     if (event.target === imageSearchModal) {
         closeImageSearch();
     }
 });
 
+closeImageViewerBtn.addEventListener('click', closeImageViewer);
+
+imageViewerModal.addEventListener('click', (event) => {
+    if (event.target === imageViewerModal) {
+        closeImageViewer();
+    }
+});
+
 document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape' && !imageSearchModal.classList.contains('hidden')) {
         closeImageSearch();
+        return;
+    }
+
+    if (event.key === 'Escape' && !imageViewerModal.classList.contains('hidden')) {
+        closeImageViewer();
     }
 });
 
