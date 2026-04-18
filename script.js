@@ -9,7 +9,8 @@ const STORAGE_KEYS = {
 const DEFAULT_SETTINGS = {
     enableWeightTracking: false,
     enableImageExpansion: true,
-    enableWakeLock: false
+    enableWakeLock: false,
+    restSeconds: 60
 };
 
 const DEFAULT_WORKOUTS = [
@@ -119,6 +120,7 @@ const configPanel = document.getElementById('configPanel');
 const weightTrackingToggle = document.getElementById('weightTrackingToggle');
 const imageExpansionToggle = document.getElementById('imageExpansionToggle');
 const wakeLockToggle = document.getElementById('wakeLockToggle');
+const restSecondsInput = document.getElementById('restSecondsInput');
 const workoutManagerList = document.getElementById('workoutManagerList');
 const workoutForm = document.getElementById('workoutForm');
 const workoutFormTitle = document.getElementById('workoutFormTitle');
@@ -186,15 +188,21 @@ function saveJson(key, value) {
 
 function loadSettings() {
     const settings = loadJson(STORAGE_KEYS.settings, DEFAULT_SETTINGS);
+    const parsedRestSeconds = parseInt(settings.restSeconds, 10);
     return {
         enableWeightTracking: Boolean(settings.enableWeightTracking),
         enableImageExpansion: settings.enableImageExpansion !== false,
-        enableWakeLock: Boolean(settings.enableWakeLock)
+        enableWakeLock: Boolean(settings.enableWakeLock),
+        restSeconds: Math.max(5, parsedRestSeconds || DEFAULT_SETTINGS.restSeconds)
     };
 }
 
 function saveSettings() {
     saveJson(STORAGE_KEYS.settings, state.settings);
+}
+
+function getRestDurationSeconds() {
+    return Math.max(5, parseInt(state.settings.restSeconds, 10) || DEFAULT_SETTINGS.restSeconds);
 }
 
 async function releaseWakeLock() {
@@ -589,15 +597,17 @@ function renderExercises() {
         const card = document.createElement('div');
         card.className = 'card p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden';
         card.dataset.exerciseId = exercise.id;
+        const restDurationSeconds = getRestDurationSeconds();
 
         const exerciseProgress = state.progress[exercise.id] || 0;
         const selectedSwap = state.swaps[exercise.id] || { name: exercise.name, imageUrl: exercise.imageUrl || '' };
         const originalPayload = encodeSwapPayload({ name: exercise.name, imageUrl: exercise.imageUrl || '' });
         const timerState = state.timers[exercise.id] || null;
         const now = Date.now();
-        const secondsLeft = timerState ? Math.max(0, Math.ceil((timerState.endAt - now) / 1000)) : 60;
+        const timerDurationSeconds = timerState?.durationSeconds || restDurationSeconds;
+        const secondsLeft = timerState ? Math.max(0, Math.ceil((timerState.endAt - now) / 1000)) : restDurationSeconds;
         const isTimerRunning = Boolean(timerState && timerState.endAt > now);
-        const timerPercent = isTimerRunning ? ((60 - secondsLeft) / 60) * 100 : 0;
+        const timerPercent = isTimerRunning ? ((timerDurationSeconds - secondsLeft) / timerDurationSeconds) * 100 : 0;
         const weightControl = state.settings.enableWeightTracking ? `
             <div class="weight-control mt-4">
                 <label class="weight-label">
@@ -795,7 +805,8 @@ function updateJsonEditorWithExample() {
         settings: {
             enableWeightTracking: false,
             enableImageExpansion: true,
-            enableWakeLock: false
+            enableWakeLock: false,
+            restSeconds: 60
         },
         workouts: [
             {
@@ -862,6 +873,7 @@ function importJsonConfig() {
             state.settings.enableWeightTracking = Boolean(settingsInput.enableWeightTracking);
             state.settings.enableImageExpansion = settingsInput.enableImageExpansion !== false;
             state.settings.enableWakeLock = Boolean(settingsInput.enableWakeLock);
+            state.settings.restSeconds = Math.max(5, parseInt(settingsInput.restSeconds, 10) || DEFAULT_SETTINGS.restSeconds);
             saveSettings();
         }
         saveWorkouts();
@@ -879,6 +891,7 @@ function syncWeightToggle() {
     weightTrackingToggle.checked = state.settings.enableWeightTracking;
     imageExpansionToggle.checked = state.settings.enableImageExpansion;
     wakeLockToggle.checked = state.settings.enableWakeLock;
+    restSecondsInput.value = String(getRestDurationSeconds());
 }
 
 function setImageSearchProvider(provider) {
@@ -1339,8 +1352,10 @@ function updateTimerButtonUI(button, progressBar, timeLeft) {
         return;
     }
 
+    const exerciseId = button.dataset.exerciseId;
+    const restDurationSeconds = state.timers[exerciseId]?.durationSeconds || getRestDurationSeconds();
     const safeTimeLeft = Math.max(0, timeLeft);
-    const percent = safeTimeLeft > 0 ? ((60 - safeTimeLeft) / 60) * 100 : 0;
+    const percent = safeTimeLeft > 0 ? ((restDurationSeconds - safeTimeLeft) / restDurationSeconds) * 100 : 0;
 
     progressBar.style.width = `${percent}%`;
     button.textContent = safeTimeLeft > 0 ? `${safeTimeLeft}s` : 'DESCANSO';
@@ -1385,6 +1400,7 @@ function startTimer(button) {
     const card = button.closest('.card');
     const progressBar = card?.querySelector('.timer-progress');
     const exerciseId = button.dataset.exerciseId;
+    const restDurationSeconds = getRestDurationSeconds();
 
     unlockAudio();
 
@@ -1397,13 +1413,14 @@ function startTimer(button) {
         clearInterval(existingTimer.intervalId);
     }
 
-    const endAt = Date.now() + 60000;
+    const endAt = Date.now() + (restDurationSeconds * 1000);
     state.timers[exerciseId] = {
         endAt,
+        durationSeconds: restDurationSeconds,
         intervalId: null
     };
 
-    updateTimerButtonUI(button, progressBar, 60);
+    updateTimerButtonUI(button, progressBar, restDurationSeconds);
     syncTimerUI(exerciseId, false);
 
     state.timers[exerciseId].intervalId = window.setInterval(() => {
@@ -1522,6 +1539,13 @@ wakeLockToggle.addEventListener('change', (event) => {
     state.settings.enableWakeLock = event.target.checked;
     saveSettings();
     syncWakeLock();
+});
+
+restSecondsInput.addEventListener('change', (event) => {
+    state.settings.restSeconds = Math.max(5, parseInt(event.target.value, 10) || DEFAULT_SETTINGS.restSeconds);
+    event.target.value = String(state.settings.restSeconds);
+    saveSettings();
+    renderExercises();
 });
 
 addWorkoutBtn.addEventListener('click', () => {
