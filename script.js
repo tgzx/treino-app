@@ -49,12 +49,15 @@ const state = {
     currentDay: new Date().getDay(),
     activeDay: null,
     timer: null,
-    progress: {}
+    progress: {},
+    swaps: {},
+    audioUnlocked: false
 };
 
 const themeToggle = document.getElementById('themeToggle');
 const sunIcon = document.getElementById('sunIcon');
 const moonIcon = document.getElementById('moonIcon');
+const beepSound = document.getElementById('beepSound');
 
 function toggleTheme() {
     document.body.classList.toggle('dark-mode');
@@ -67,6 +70,30 @@ function toggleTheme() {
 themeToggle.addEventListener('click', toggleTheme);
 if (localStorage.getItem('theme') === 'dark') {
     toggleTheme();
+}
+
+function unlockAudio() {
+    if (state.audioUnlocked || !beepSound) {
+        return;
+    }
+
+    beepSound.volume = 0;
+    beepSound.play()
+        .then(() => {
+            beepSound.pause();
+            beepSound.currentTime = 0;
+            beepSound.volume = 1;
+            state.audioUnlocked = true;
+        })
+        .catch(() => {
+            beepSound.volume = 1;
+        });
+}
+
+function escapeForSingleQuotedJs(value) {
+    return value
+        .replace(/\\/g, '\\\\')
+        .replace(/'/g, "\\'");
 }
 
 function changeDay(day) {
@@ -101,11 +128,13 @@ function renderExercises(day) {
         card.className = 'card p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden';
 
         const exerciseProgress = state.progress[ex.id] || 0;
+        const selectedName = state.swaps[ex.id] || ex.name;
+        const originalName = escapeForSingleQuotedJs(ex.name);
 
         card.innerHTML = `
             <div class="flex justify-between items-start mb-4">
                 <div class="flex-1">
-                    <h3 class="font-bold text-lg leading-tight" id="title-${ex.id}">${ex.name}</h3>
+                    <h3 class="font-bold text-lg leading-tight" id="title-${ex.id}">${selectedName}</h3>
                     <p class="text-sm opacity-60">${ex.sets} séries x ${ex.reps}</p>
                     ${ex.obs ? `<p class="text-xs text-red-400 mt-1 font-semibold italic">${ex.obs}</p>` : ''}
                 </div>
@@ -135,9 +164,9 @@ function renderExercises(day) {
                     <button onclick="hideSwaps('${ex.id}')" class="text-xs font-bold text-red-500">FECHAR</button>
                 </div>
                 <div class="space-y-2">
-                    <button onclick="applySwap('${ex.id}', '${ex.name}')" class="w-full text-left p-2 text-sm border rounded bg-slate-50 dark:bg-slate-800">${ex.name} (Original)</button>
+                    <button onclick="applySwap('${ex.id}', '${originalName}')" class="w-full text-left p-2 text-sm border rounded bg-slate-50 dark:bg-slate-800">${ex.name} (Original)</button>
                     ${ex.swaps.map((swap) => `
-                        <button onclick="applySwap('${ex.id}', '${swap}')" class="w-full text-left p-2 text-sm border rounded hover:border-blue-500 dark:border-slate-700">
+                        <button onclick="applySwap('${ex.id}', '${escapeForSingleQuotedJs(swap)}')" class="w-full text-left p-2 text-sm border rounded hover:border-blue-500 dark:border-slate-700">
                             ${swap}
                         </button>
                     `).join('')}
@@ -185,14 +214,15 @@ function hideSwaps(id) {
 }
 
 function applySwap(id, newName) {
-    document.getElementById(`title-${id}`).innerText = newName;
-    hideSwaps(id);
+    state.swaps[id] = newName;
+    renderExercises(state.activeDay);
 }
 
 function startTimer(btn) {
     const card = btn.closest('.card');
     const progressBar = card.querySelector('.timer-progress');
-    const beep = document.getElementById('beepSound');
+
+    unlockAudio();
 
     if (btn.dataset.running === 'true') {
         return;
@@ -214,7 +244,8 @@ function startTimer(btn) {
             btn.dataset.running = 'false';
             btn.classList.remove('opacity-50');
             progressBar.style.width = '0%';
-            beep.play().catch(() => console.log('Erro ao tocar som: interação necessária'));
+            beepSound.currentTime = 0;
+            beepSound.play().catch(() => console.log('Erro ao tocar som: interação necessária'));
         }
     }, 1000);
 }
