@@ -510,15 +510,21 @@ function buildGeneratedBeepUrl() {
 }
 
 function createBeepAudio() {
+    alert('createBeepAudio 1');
     if (state.beepAudio) {
+        alert('createBeepAudio 2');
         return state.beepAudio;
     }
 
+    alert('createBeepAudio 3');
+
     const audio = new Audio(buildGeneratedBeepUrl());
+    alert('createBeepAudio 4');
     audio.preload = 'auto';
     audio.playsInline = true;
     audio.volume = 1;
     state.beepAudio = audio;
+    alert('createBeepAudio 5');
     return audio;
 }
 
@@ -551,6 +557,7 @@ async function playBeepSound() {
         return true;
     } catch (error) {
         console.log('Erro ao tocar som: interacao necessaria');
+        alert('error => ' + JSON.stringify(error));
         return false;
     }
 }
