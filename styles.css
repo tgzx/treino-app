@@ -516,7 +516,7 @@ h4 {
 }
 
 .timer-progress {
-    transition: width 1s linear;
+    transition: width 0.25s linear;
     background: linear-gradient(90deg, var(--accent), var(--accent-strong)) !important;
 }
 

@@ -84,6 +84,7 @@ const state = {
     timers: {},
     audioUnlocked: false,
     pendingBeepSound: false,
+    audioContext: null,
     settings: loadSettings(),
     workouts: loadWorkouts(),
     weights: loadWeights(),
@@ -433,39 +434,163 @@ function toggleTheme() {
     localStorage.setItem(STORAGE_KEYS.theme, isDark ? 'dark' : 'light');
 }
 
-function unlockAudio() {
-    if (state.audioUnlocked || !beepSound) {
-        return;
+function getAudioContext() {
+    if (state.audioContext) {
+        return state.audioContext;
     }
 
-    beepSound.volume = 0;
-    beepSound.play()
-        .then(() => {
-            beepSound.pause();
-            beepSound.currentTime = 0;
-            beepSound.volume = 1;
-            state.audioUnlocked = true;
-        })
-        .catch(() => {
-            beepSound.volume = 1;
-        });
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) {
+        return null;
+    }
+
+    state.audioContext = new AudioContextClass();
+    return state.audioContext;
 }
 
-function playBeepSound() {
+async function primeHtmlAudioElement() {
     if (!beepSound) {
-        return;
+        return false;
     }
 
-    beepSound.currentTime = 0;
-    beepSound.play()
-        .then(() => {
-            state.pendingBeepSound = false;
-            state.audioUnlocked = true;
-        })
-        .catch(() => {
-            state.pendingBeepSound = true;
-            console.log('Erro ao tocar som: interacao necessaria');
+    const previousMuted = beepSound.muted;
+    const previousVolume = beepSound.volume;
+
+    try {
+        beepSound.muted = true;
+        beepSound.volume = 0;
+        beepSound.currentTime = 0;
+        await beepSound.play();
+        beepSound.pause();
+        beepSound.currentTime = 0;
+        state.audioUnlocked = true;
+        return true;
+    } catch (error) {
+        return false;
+    } finally {
+        beepSound.muted = previousMuted;
+        beepSound.volume = previousVolume;
+    }
+}
+
+async function resumeAudioContext() {
+    const audioContext = getAudioContext();
+    if (!audioContext) {
+        return false;
+    }
+
+    try {
+        if (audioContext.state === 'suspended') {
+            await audioContext.resume();
+        }
+
+        const resumed = audioContext.state === 'running';
+        state.audioUnlocked = state.audioUnlocked || resumed;
+        return resumed;
+    } catch (error) {
+        return false;
+    }
+}
+
+async function unlockAudio() {
+    const [htmlUnlocked, contextUnlocked] = await Promise.allSettled([
+        primeHtmlAudioElement(),
+        resumeAudioContext()
+    ]);
+
+    state.audioUnlocked = state.audioUnlocked
+        || [htmlUnlocked, contextUnlocked].some((result) => result.status === 'fulfilled' && result.value);
+}
+
+async function playHtmlBeepSound() {
+    if (!beepSound) {
+        return false;
+    }
+
+    try {
+        beepSound.currentTime = 0;
+        await beepSound.play();
+        return true;
+    } catch (error) {
+        return false;
+    }
+}
+
+async function playSynthBeepSound() {
+    const audioContext = getAudioContext();
+    if (!audioContext) {
+        return false;
+    }
+
+    try {
+        if (audioContext.state === 'suspended') {
+            await audioContext.resume();
+        }
+
+        if (audioContext.state !== 'running') {
+            return false;
+        }
+
+        const startAt = audioContext.currentTime + 0.01;
+        const gainNode = audioContext.createGain();
+        gainNode.gain.setValueAtTime(0.0001, startAt);
+        gainNode.connect(audioContext.destination);
+
+        const beepMoments = [
+            { offset: 0, duration: 0.12, frequency: 880 },
+            { offset: 0.18, duration: 0.18, frequency: 1174 }
+        ];
+
+        beepMoments.forEach(({ offset, duration, frequency }) => {
+            const oscillator = audioContext.createOscillator();
+            const toneStart = startAt + offset;
+            const toneEnd = toneStart + duration;
+
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(frequency, toneStart);
+            oscillator.connect(gainNode);
+
+            gainNode.gain.setValueAtTime(0.0001, toneStart);
+            gainNode.gain.exponentialRampToValueAtTime(0.18, toneStart + 0.02);
+            gainNode.gain.exponentialRampToValueAtTime(0.0001, toneEnd);
+
+            oscillator.start(toneStart);
+            oscillator.stop(toneEnd + 0.02);
         });
+
+        state.audioUnlocked = true;
+        return true;
+    } catch (error) {
+        return false;
+    }
+}
+
+async function playBeepSound() {
+    const htmlAudioPlayed = await playHtmlBeepSound();
+    if (htmlAudioPlayed) {
+        state.pendingBeepSound = false;
+        state.audioUnlocked = true;
+        return true;
+    }
+
+    const synthPlayed = await playSynthBeepSound();
+    if (synthPlayed) {
+        state.pendingBeepSound = false;
+        state.audioUnlocked = true;
+        return true;
+    }
+
+    state.pendingBeepSound = true;
+    console.log('Erro ao tocar som: interacao necessaria');
+    return false;
+}
+
+function triggerTimerCompletionFeedback() {
+    playBeepSound();
+
+    if (navigator.vibrate) {
+        navigator.vibrate([160, 80, 220]);
+    }
 }
 
 function flushPendingBeepSound() {
@@ -605,9 +730,12 @@ function renderExercises() {
         const timerState = state.timers[exercise.id] || null;
         const now = Date.now();
         const timerDurationSeconds = timerState?.durationSeconds || restDurationSeconds;
-        const secondsLeft = timerState ? Math.max(0, Math.ceil((timerState.endAt - now) / 1000)) : restDurationSeconds;
+        const millisecondsLeft = timerState ? Math.max(0, timerState.endAt - now) : restDurationSeconds * 1000;
+        const secondsLeft = timerState ? Math.max(0, Math.ceil(millisecondsLeft / 1000)) : restDurationSeconds;
         const isTimerRunning = Boolean(timerState && timerState.endAt > now);
-        const timerPercent = isTimerRunning ? ((timerDurationSeconds - secondsLeft) / timerDurationSeconds) * 100 : 0;
+        const timerPercent = isTimerRunning
+            ? (((timerDurationSeconds * 1000) - millisecondsLeft) / (timerDurationSeconds * 1000)) * 100
+            : 0;
         const weightControl = state.settings.enableWeightTracking ? `
             <div class="weight-control mt-4">
                 <label class="weight-label">
@@ -1354,15 +1482,19 @@ function updateExerciseWeight(exerciseId, value) {
     saveWeights();
 }
 
-function updateTimerButtonUI(button, progressBar, timeLeft) {
+function updateTimerButtonUI(button, progressBar, timeLeft, millisecondsLeft = timeLeft * 1000) {
     if (!button || !progressBar) {
         return;
     }
 
     const exerciseId = button.dataset.exerciseId;
     const restDurationSeconds = state.timers[exerciseId]?.durationSeconds || getRestDurationSeconds();
+    const durationMilliseconds = restDurationSeconds * 1000;
     const safeTimeLeft = Math.max(0, timeLeft);
-    const percent = safeTimeLeft > 0 ? ((restDurationSeconds - safeTimeLeft) / restDurationSeconds) * 100 : 0;
+    const safeMillisecondsLeft = Math.max(0, millisecondsLeft);
+    const percent = safeMillisecondsLeft > 0
+        ? ((durationMilliseconds - safeMillisecondsLeft) / durationMilliseconds) * 100
+        : 0;
 
     progressBar.style.width = `${percent}%`;
     button.textContent = safeTimeLeft > 0 ? `${safeTimeLeft}s` : 'DESCANSO';
@@ -1377,11 +1509,18 @@ function finishTimer(exerciseId, button, progressBar, shouldPlaySound = true) {
     }
 
     delete state.timers[exerciseId];
-    updateTimerButtonUI(button, progressBar, 0);
+    progressBar.style.width = '100%';
+    button.textContent = '0s';
+    button.dataset.running = 'true';
+    button.classList.add('opacity-50');
 
     if (shouldPlaySound) {
-        playBeepSound();
+        triggerTimerCompletionFeedback();
     }
+
+    window.setTimeout(() => {
+        updateTimerButtonUI(button, progressBar, 0, 0);
+    }, 180);
 }
 
 function syncTimerUI(exerciseId, shouldPlaySound = true) {
@@ -1394,13 +1533,14 @@ function syncTimerUI(exerciseId, shouldPlaySound = true) {
         return;
     }
 
-    const timeLeft = Math.ceil((timerState.endAt - Date.now()) / 1000);
-    if (timeLeft <= 0) {
+    const millisecondsLeft = timerState.endAt - Date.now();
+    const timeLeft = Math.ceil(millisecondsLeft / 1000);
+    if (millisecondsLeft <= 0) {
         finishTimer(exerciseId, button, progressBar, shouldPlaySound);
         return;
     }
 
-    updateTimerButtonUI(button, progressBar, timeLeft);
+    updateTimerButtonUI(button, progressBar, timeLeft, millisecondsLeft);
 }
 
 function startTimer(button) {
@@ -1427,12 +1567,12 @@ function startTimer(button) {
         intervalId: null
     };
 
-    updateTimerButtonUI(button, progressBar, restDurationSeconds);
+    updateTimerButtonUI(button, progressBar, restDurationSeconds, restDurationSeconds * 1000);
     syncTimerUI(exerciseId, false);
 
     state.timers[exerciseId].intervalId = window.setInterval(() => {
         syncTimerUI(exerciseId, true);
-    }, 1000);
+    }, 250);
 }
 
 function editWorkout(workoutId) {
@@ -1773,7 +1913,18 @@ document.addEventListener('visibilitychange', () => {
 });
 
 window.addEventListener('focus', flushPendingBeepSound);
-window.addEventListener('pointerdown', flushPendingBeepSound, { passive: true });
+window.addEventListener('pointerdown', () => {
+    unlockAudio();
+    flushPendingBeepSound();
+}, { passive: true });
+window.addEventListener('touchend', () => {
+    unlockAudio();
+    flushPendingBeepSound();
+}, { passive: true });
+window.addEventListener('keydown', () => {
+    unlockAudio();
+    flushPendingBeepSound();
+});
 
 window.addEventListener('beforeinstallprompt', (event) => {
     event.preventDefault();
