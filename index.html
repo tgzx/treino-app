@@ -1,352 +1,371 @@
-
 <!DOCTYPE html>
 <html lang="pt-br">
+
 <head>
-    
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta charset="UTF-8">
-<meta name="theme-color" content="#0f172a">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Treino ABCD">
-<link rel="apple-touch-icon" href="./appicon.png">
-<link rel="manifest" href="./manifest.webmanifest">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Treino ABCD">
+    <link rel="apple-touch-icon" href="./appicon.png">
+    <link rel="manifest" href="./manifest.webmanifest">
     <title>Treino ABCD - Lombar Sensível</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-<style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
-    
-    :root {
-        --bg-color: #f4f7fb;
-        --card-bg: #ffffff;
-        --card-bg-soft: #f8fafc;
-        --surface-muted: #eef2f7;
-        --text-main: #0f172a;
-        --text-soft: #334155;
-        --text-muted: #64748b;
-        --border: #dbe4ee;
-        --border-strong: #cbd5e1;
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
 
-        --accent: #2563eb;
-        --accent-strong: #1d4ed8;
-        --accent-soft: #dbeafe;
-        --accent-soft-2: #eff6ff;
-        --accent-ring: rgba(37, 99, 235, 0.22);
+        :root {
+            --bg-color: #f4f7fb;
+            --card-bg: #ffffff;
+            --card-bg-soft: #f8fafc;
+            --surface-muted: #eef2f7;
+            --text-main: #0f172a;
+            --text-soft: #334155;
+            --text-muted: #64748b;
+            --border: #dbe4ee;
+            --border-strong: #cbd5e1;
 
-        --success: #059669;
-        --danger: #dc2626;
+            --accent: #2563eb;
+            --accent-strong: #1d4ed8;
+            --accent-soft: #dbeafe;
+            --accent-soft-2: #eff6ff;
+            --accent-ring: rgba(37, 99, 235, 0.22);
 
-        --day-bg: #e2e8f0;
-        --day-text: #334155;
-        --day-border: #cbd5e1;
+            --success: #059669;
+            --danger: #dc2626;
 
-        --today-bg: #eff6ff;
-        --today-text: #1d4ed8;
-        --today-border: #93c5fd;
+            --day-bg: #e2e8f0;
+            --day-text: #334155;
+            --day-border: #cbd5e1;
 
-        --timer-bg: #eff6ff;
-        --timer-text: #1d4ed8;
-        --timer-border: #bfdbfe;
-    }
+            --today-bg: #eff6ff;
+            --today-text: #1d4ed8;
+            --today-border: #93c5fd;
 
-    .dark-mode {
-        --bg-color: #0b1220;
-        --card-bg: #111827;
-        --card-bg-soft: #162033;
-        --surface-muted: #1e293b;
-        --text-main: #e5eef8;
-        --text-soft: #cbd5e1;
-        --text-muted: #94a3b8;
-        --border: #253247;
-        --border-strong: #334155;
+            --timer-bg: #eff6ff;
+            --timer-text: #1d4ed8;
+            --timer-border: #bfdbfe;
+        }
 
-        --accent: #60a5fa;
-        --accent-strong: #93c5fd;
-        --accent-soft: rgba(96, 165, 250, 0.16);
-        --accent-soft-2: rgba(96, 165, 250, 0.12);
-        --accent-ring: rgba(96, 165, 250, 0.28);
+        .dark-mode {
+            --bg-color: #0b1220;
+            --card-bg: #111827;
+            --card-bg-soft: #162033;
+            --surface-muted: #1e293b;
+            --text-main: #e5eef8;
+            --text-soft: #cbd5e1;
+            --text-muted: #94a3b8;
+            --border: #253247;
+            --border-strong: #334155;
 
-        --success: #34d399;
-        --danger: #f87171;
+            --accent: #60a5fa;
+            --accent-strong: #93c5fd;
+            --accent-soft: rgba(96, 165, 250, 0.16);
+            --accent-soft-2: rgba(96, 165, 250, 0.12);
+            --accent-ring: rgba(96, 165, 250, 0.28);
 
-        --day-bg: #1e293b;
-        --day-text: #cbd5e1;
-        --day-border: #334155;
+            --success: #34d399;
+            --danger: #f87171;
 
-        --today-bg: rgba(96, 165, 250, 0.14);
-        --today-text: #bfdbfe;
-        --today-border: rgba(147, 197, 253, 0.45);
+            --day-bg: #1e293b;
+            --day-text: #cbd5e1;
+            --day-border: #334155;
 
-        --timer-bg: rgba(96, 165, 250, 0.14);
-        --timer-text: #bfdbfe;
-        --timer-border: rgba(147, 197, 253, 0.35);
-    }
+            --today-bg: rgba(96, 165, 250, 0.14);
+            --today-text: #bfdbfe;
+            --today-border: rgba(147, 197, 253, 0.45);
 
-    body {
-        font-family: 'Inter', sans-serif;
-        background-color: var(--bg-color);
-        color: var(--text-main);
-        transition: background-color 0.3s ease, color 0.3s ease;
-    }
+            --timer-bg: rgba(96, 165, 250, 0.14);
+            --timer-text: #bfdbfe;
+            --timer-border: rgba(147, 197, 253, 0.35);
+        }
 
-    header {
-        background-color: var(--card-bg) !important;
-        border-bottom: 1px solid var(--border);
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
-    }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
 
-    h1, h2, h3, h4 {
-        color: var(--text-main);
-    }
+        header {
+            background-color: var(--card-bg) !important;
+            border-bottom: 1px solid var(--border);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
 
-    #muscleGroup {
-        color: var(--accent) !important;
-    }
+        h1,
+        h2,
+        h3,
+        h4 {
+            color: var(--text-main);
+        }
 
-    .card {
-        background-color: var(--card-bg);
-        border-color: var(--border) !important;
-        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
-        transition: transform 0.2s, box-shadow 0.2s, background-color 0.3s ease, border-color 0.3s ease;
-    }
+        #muscleGroup {
+            color: var(--accent) !important;
+        }
 
-    .dark-mode .card {
-        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
-    }
+        .card {
+            background-color: var(--card-bg);
+            border-color: var(--border) !important;
+            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+            transition: transform 0.2s, box-shadow 0.2s, background-color 0.3s ease, border-color 0.3s ease;
+        }
 
-    .card:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
-    }
+        .dark-mode .card {
+            box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+        }
 
-    .dark-mode .card:hover {
-        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.34);
-    }
+        .card:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+        }
 
-    .card p,
-    .card li,
-    #restMessage p {
-        color: var(--text-soft);
-    }
+        .dark-mode .card:hover {
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.34);
+        }
 
-    .card .opacity-80,
-    .card .opacity-60,
-    #restMessage .opacity-50 {
-        opacity: 1 !important;
-        color: var(--text-muted) !important;
-    }
+        .card p,
+        .card li,
+        #restMessage p {
+            color: var(--text-soft);
+        }
 
-    .card .text-red-400 {
-        color: var(--danger) !important;
-    }
+        .card .opacity-80,
+        .card .opacity-60,
+        #restMessage .opacity-50 {
+            opacity: 1 !important;
+            color: var(--text-muted) !important;
+        }
 
-    .series-dot {
-        width: 32px;
-        height: 32px;
-        border-radius: 999px;
-        border: 2px solid var(--border-strong);
-        background: var(--card-bg-soft);
-        color: var(--text-soft);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 700;
-        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-        box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04);
-    }
+        .card .text-red-400 {
+            color: var(--danger) !important;
+        }
 
-    .series-dot.active {
-        background: linear-gradient(135deg, var(--accent), var(--accent-strong));
-        border-color: transparent;
-        color: #ffffff;
-        transform: scale(1.08);
-        box-shadow: 0 0 0 4px var(--accent-ring);
-    }
+        .series-dot {
+            width: 32px;
+            height: 32px;
+            border-radius: 999px;
+            border: 2px solid var(--border-strong);
+            background: var(--card-bg-soft);
+            color: var(--text-soft);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+        }
 
-    .timer-progress {
-        transition: width 1s linear;
-        background: linear-gradient(90deg, var(--accent), var(--accent-strong)) !important;
-    }
+        .series-dot.active {
+            background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+            border-color: transparent;
+            color: #ffffff;
+            transform: scale(1.08);
+            box-shadow: 0 0 0 4px var(--accent-ring);
+        }
 
-    .hidden { display: none; }
-    
-    .tab-active {
-        border-bottom: 3px solid var(--accent);
-        color: var(--accent);
-    }
+        .timer-progress {
+            transition: width 1s linear;
+            background: linear-gradient(90deg, var(--accent), var(--accent-strong)) !important;
+        }
 
-    /* Toggle tema */
-    #themeToggle {
-        color: var(--text-soft);
-        background: transparent;
-        border: 1px solid transparent;
-        transition: all 0.2s ease;
-    }
+        .hidden {
+            display: none;
+        }
 
-    #themeToggle:hover {
-        background: var(--card-bg-soft) !important;
-        border-color: var(--border);
-        color: var(--text-main);
-    }
+        .tab-active {
+            border-bottom: 3px solid var(--accent);
+            color: var(--accent);
+        }
 
-    /* Badges dos dias */
-    .day-btn {
-        position: relative;
-        background: var(--day-bg) !important;
-        color: var(--day-text) !important;
-        border: 1px solid var(--day-border);
-        box-shadow: 0 2px 6px rgba(15, 23, 42, 0.05);
-        transition: all 0.2s ease;
-    }
+        /* Toggle tema */
+        #themeToggle {
+            color: var(--text-soft);
+            background: transparent;
+            border: 1px solid transparent;
+            transition: all 0.2s ease;
+        }
 
-    .day-btn:hover {
-        background: var(--card-bg-soft) !important;
-        color: var(--text-main) !important;
-        border-color: var(--today-border);
-        transform: translateY(-1px);
-    }
+        #themeToggle:hover {
+            background: var(--card-bg-soft) !important;
+            border-color: var(--border);
+            color: var(--text-main);
+        }
 
-    /* Dia selecionado (teu JS já aplica bg-blue-500 + text-white) */
-    .day-btn.bg-blue-500,
-    .day-btn.text-white,
-    .day-btn.bg-blue-500.text-white {
-        background: linear-gradient(135deg, var(--accent), var(--accent-strong)) !important;
-        color: #ffffff !important;
-        border-color: transparent !important;
-        box-shadow: 0 8px 22px var(--accent-ring);
-    }
+        /* Badges dos dias */
+        .day-btn {
+            position: relative;
+            background: var(--day-bg) !important;
+            color: var(--day-text) !important;
+            border: 1px solid var(--day-border);
+            box-shadow: 0 2px 6px rgba(15, 23, 42, 0.05);
+            transition: all 0.2s ease;
+        }
 
-    .day-btn.bg-blue-500::after,
-    .day-btn.text-white::after,
-    .day-btn.bg-blue-500.text-white::after {
-        content: "HOJE";
-        position: absolute;
-        top: -8px;
-        right: -4px;
-        font-size: 10px;
-        font-weight: 800;
-        letter-spacing: 0.04em;
-        padding: 2px 7px;
-        border-radius: 999px;
-        background: #ffffff;
-        color: var(--accent-strong);
-        border: 1px solid rgba(255,255,255,0.85);
-        box-shadow: 0 6px 14px rgba(15, 23, 42, 0.16);
-    }
+        .day-btn:hover {
+            background: var(--card-bg-soft) !important;
+            color: var(--text-main) !important;
+            border-color: var(--today-border);
+            transform: translateY(-1px);
+        }
 
-    .dark-mode .day-btn.bg-blue-500::after,
-    .dark-mode .day-btn.text-white::after,
-    .dark-mode .day-btn.bg-blue-500.text-white::after {
-        background: #0f172a;
-        color: var(--accent-strong);
-        border-color: rgba(147, 197, 253, 0.32);
-        box-shadow: 0 6px 14px rgba(0, 0, 0, 0.35);
-    }
+        /* Dia selecionado (teu JS já aplica bg-blue-500 + text-white) */
+        .day-btn.bg-blue-500,
+        .day-btn.text-white,
+        .day-btn.bg-blue-500.text-white {
+            background: linear-gradient(135deg, var(--accent), var(--accent-strong)) !important;
+            color: #ffffff !important;
+            border-color: transparent !important;
+            box-shadow: 0 8px 22px var(--accent-ring);
+        }
 
-    /* Botão TROCAR */
-    button[onclick^="showSwaps"] {
-        background: var(--card-bg-soft) !important;
-        color: var(--text-main) !important;
-        border: 1px solid var(--border) !important;
-        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
-    }
+        .day-btn.bg-blue-500::after,
+        .day-btn.text-white::after,
+        .day-btn.bg-blue-500.text-white::after {
+            content: "HOJE";
+            position: absolute;
+            top: -8px;
+            right: -4px;
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+            padding: 2px 7px;
+            border-radius: 999px;
+            background: #ffffff;
+            color: var(--accent-strong);
+            border: 1px solid rgba(255, 255, 255, 0.85);
+            box-shadow: 0 6px 14px rgba(15, 23, 42, 0.16);
+        }
 
-    button[onclick^="showSwaps"]:hover {
-        background: var(--accent-soft-2) !important;
-        border-color: var(--today-border) !important;
-        color: var(--accent-strong) !important;
-    }
+        .dark-mode .day-btn.bg-blue-500::after,
+        .dark-mode .day-btn.text-white::after,
+        .dark-mode .day-btn.bg-blue-500.text-white::after {
+            background: #0f172a;
+            color: var(--accent-strong);
+            border-color: rgba(147, 197, 253, 0.32);
+            box-shadow: 0 6px 14px rgba(0, 0, 0, 0.35);
+        }
 
-    /* Botão descanso */
-    button[onclick^="startTimer"] {
-        background: var(--timer-bg) !important;
-        color: var(--timer-text) !important;
-        border: 1px solid var(--timer-border) !important;
-        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
-    }
+        /* Botão TROCAR */
+        button[onclick^="showSwaps"] {
+            background: var(--card-bg-soft) !important;
+            color: var(--text-main) !important;
+            border: 1px solid var(--border) !important;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+        }
 
-    button[onclick^="startTimer"]:hover {
-        filter: brightness(0.98);
-        transform: translateY(-1px);
-    }
+        button[onclick^="showSwaps"]:hover {
+            background: var(--accent-soft-2) !important;
+            border-color: var(--today-border) !important;
+            color: var(--accent-strong) !important;
+        }
 
-    button[onclick^="startTimer"].opacity-50,
-    button[onclick^="startTimer"][data-running="true"] {
-        background: var(--surface-muted) !important;
-        color: var(--text-muted) !important;
-        border-color: var(--border) !important;
-    }
+        /* Botão descanso */
+        button[onclick^="startTimer"] {
+            background: var(--timer-bg) !important;
+            color: var(--timer-text) !important;
+            border: 1px solid var(--timer-border) !important;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+        }
 
-    /* Modal de trocas */
-    [id^="swaps-"] {
-        background: color-mix(in srgb, var(--card-bg) 94%, transparent) !important;
-        border-top: 1px solid var(--border);
-    }
+        button[onclick^="startTimer"]:hover {
+            filter: brightness(0.98);
+            transform: translateY(-1px);
+        }
 
-    [id^="swaps-"] h4 {
-        color: var(--text-main);
-    }
+        button[onclick^="startTimer"].opacity-50,
+        button[onclick^="startTimer"][data-running="true"] {
+            background: var(--surface-muted) !important;
+            color: var(--text-muted) !important;
+            border-color: var(--border) !important;
+        }
 
-    [id^="swaps-"] button {
-        background: var(--card-bg-soft);
-        color: var(--text-main);
-        border: 1px solid var(--border);
-        transition: all 0.2s ease;
-    }
+        /* Modal de trocas */
+        [id^="swaps-"] {
+            background: color-mix(in srgb, var(--card-bg) 94%, transparent) !important;
+            border-top: 1px solid var(--border);
+        }
 
-    [id^="swaps-"] button:hover {
-        background: var(--accent-soft-2) !important;
-        border-color: var(--today-border) !important;
-        color: var(--accent-strong) !important;
-    }
+        [id^="swaps-"] h4 {
+            color: var(--text-main);
+        }
 
-    [id^="swaps-"] button.text-red-500 {
-        background: transparent !important;
-        color: var(--danger) !important;
-        border: none !important;
-        box-shadow: none !important;
-    }
+        [id^="swaps-"] button {
+            background: var(--card-bg-soft);
+            color: var(--text-main);
+            border: 1px solid var(--border);
+            transition: all 0.2s ease;
+        }
 
-    /* Destaques de texto */
-    .text-blue-500 {
-        color: var(--accent) !important;
-    }
+        [id^="swaps-"] button:hover {
+            background: var(--accent-soft-2) !important;
+            border-color: var(--today-border) !important;
+            color: var(--accent-strong) !important;
+        }
 
-    .font-semibold,
-    .font-bold {
-        letter-spacing: -0.01em;
-    }
+        [id^="swaps-"] button.text-red-500 {
+            background: transparent !important;
+            color: var(--danger) !important;
+            border: none !important;
+            box-shadow: none !important;
+        }
 
-    /* Scroll horizontal dos dias um pouco mais bonito */
-    .no-scrollbar::-webkit-scrollbar {
-        display: none;
-    }
+        /* Destaques de texto */
+        .text-blue-500 {
+            color: var(--accent) !important;
+        }
 
-    .no-scrollbar {
-        -ms-overflow-style: none;
-        scrollbar-width: none;
-    }
+        .font-semibold,
+        .font-bold {
+            letter-spacing: -0.01em;
+        }
 
-    @keyframes pulse-ring {
-        0% { transform: scale(.33); }
-        80%, 100% { opacity: 0; }
-    }
+        /* Scroll horizontal dos dias um pouco mais bonito */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
 
-    .animate-finish {
-        animation: bounce 0.5s ease infinite alternate;
-    }
-</style>
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        @keyframes pulse-ring {
+            0% {
+                transform: scale(.33);
+            }
+
+            80%,
+            100% {
+                opacity: 0;
+            }
+        }
+
+        .animate-finish {
+            animation: bounce 0.5s ease infinite alternate;
+        }
+    </style>
 </head>
+
 <body class="min-h-screen pb-20">
 
     <!-- Header & Theme Toggle -->
-    <header class="p-4 flex justify-between items-center bg-white dark:bg-slate-900 shadow-sm sticky top-0 z-50 transition-colors">
+    <header
+        class="p-4 flex justify-between items-center bg-white dark:bg-slate-900 shadow-sm sticky top-0 z-50 transition-colors">
         <h1 class="text-xl font-bold">Lombar <span class="text-blue-500">Sensível</span></h1>
         <button id="themeToggle" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-slate-800">
-            <svg id="sunIcon" class="w-6 h-6 hidden" fill="currentColor" viewBox="0 0 20 20"><path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z"></path></svg>
-            <svg id="moonIcon" class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path></svg>
+            <svg id="sunIcon" class="w-6 h-6 hidden" fill="currentColor" viewBox="0 0 20 20">
+                <path
+                    d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z">
+                </path>
+            </svg>
+            <svg id="moonIcon" class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path>
+            </svg>
         </button>
     </header>
 
@@ -366,11 +385,20 @@
 
         <!-- Seletor de Dias -->
         <div class="flex overflow-x-auto gap-2 mb-6 no-scrollbar py-2">
-            <button onclick="changeDay(1)" data-day="1" class="day-btn px-4 py-2 rounded-full whitespace-nowrap bg-gray-200 dark:bg-slate-800 text-sm font-semibold">SEG - A</button>
-            <button onclick="changeDay(2)" data-day="2" class="day-btn px-4 py-2 rounded-full whitespace-nowrap bg-gray-200 dark:bg-slate-800 text-sm font-semibold">TER - B</button>
-            <button onclick="changeDay(4)" data-day="4" class="day-btn px-4 py-2 rounded-full whitespace-nowrap bg-gray-200 dark:bg-slate-800 text-sm font-semibold">QUI - C</button>
-            <button onclick="changeDay(5)" data-day="5" class="day-btn px-4 py-2 rounded-full whitespace-nowrap bg-gray-200 dark:bg-slate-800 text-sm font-semibold">SEX - D</button>
-            <button onclick="changeDay(0)" data-day="0" class="day-btn px-4 py-2 rounded-full whitespace-nowrap bg-gray-200 dark:bg-slate-800 text-sm font-semibold">OUTROS</button>
+            <button onclick="changeDay(1)" data-day="1"
+                class="day-btn px-4 py-2 rounded-full whitespace-nowrap bg-gray-200 dark:bg-slate-800 text-sm font-semibold">SEG
+                - A</button>
+            <button onclick="changeDay(2)" data-day="2"
+                class="day-btn px-4 py-2 rounded-full whitespace-nowrap bg-gray-200 dark:bg-slate-800 text-sm font-semibold">TER
+                - B</button>
+            <button onclick="changeDay(4)" data-day="4"
+                class="day-btn px-4 py-2 rounded-full whitespace-nowrap bg-gray-200 dark:bg-slate-800 text-sm font-semibold">QUI
+                - C</button>
+            <button onclick="changeDay(5)" data-day="5"
+                class="day-btn px-4 py-2 rounded-full whitespace-nowrap bg-gray-200 dark:bg-slate-800 text-sm font-semibold">SEX
+                - D</button>
+            <button onclick="changeDay(0)" data-day="0"
+                class="day-btn px-4 py-2 rounded-full whitespace-nowrap bg-gray-200 dark:bg-slate-800 text-sm font-semibold">OUTROS</button>
         </div>
 
         <!-- Container de Treino -->
@@ -476,9 +504,9 @@
             const list = document.getElementById('exercisesList');
             const workoutTitle = document.getElementById('workoutTitle');
             const restMessage = document.getElementById('restMessage');
-            
+
             list.innerHTML = '';
-            
+
             if (!workoutData[day]) {
                 workoutTitle.classList.add('hidden');
                 restMessage.classList.remove('hidden');
@@ -493,7 +521,7 @@
             workoutData[day].exercises.forEach((ex, idx) => {
                 const card = document.createElement('div');
                 card.className = 'card p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden';
-                
+
                 const exerciseProgress = state.progress[ex.id] || 0;
 
                 card.innerHTML = `
@@ -508,7 +536,7 @@
 
                     <div class="flex items-center gap-4 mb-4">
                         <div class="flex gap-2" onclick="incrementSeries('${ex.id}', ${ex.sets})">
-                            ${Array.from({length: ex.sets}).map((_, i) => `
+                            ${Array.from({ length: ex.sets }).map((_, i) => `
                                 <div class="series-dot ${i < exerciseProgress ? 'active' : ''}">
                                     ${i < exerciseProgress ? '✓' : i + 1}
                                 </div>
@@ -546,9 +574,9 @@
 
         function incrementSeries(id, total) {
             if (!state.progress[id]) state.progress[id] = 0;
-            
+
             state.progress[id]++;
-            
+
             // Se passar do total, reinicia (como solicitado pelo usuário)
             if (state.progress[id] > total) {
                 state.progress[id] = 0;
@@ -588,14 +616,14 @@
             const card = btn.closest('.card');
             const progressBar = card.querySelector('.timer-progress');
             const beep = document.getElementById('beepSound');
-            
+
             // Previne múltiplos timers no mesmo card
             if (btn.dataset.running === "true") return;
-            
+
             let timeLeft = 60; // 60 segundos de descanso padrão
             btn.dataset.running = "true";
             btn.classList.add('opacity-50');
-            
+
             const interval = setInterval(() => {
                 timeLeft--;
                 const percent = ((60 - timeLeft) / 60) * 100;
@@ -622,4 +650,5 @@
         };
     </script>
 </body>
+
 </html>
