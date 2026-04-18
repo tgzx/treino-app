@@ -10,24 +10,16 @@
     --text-muted: #64748b;
     --border: #dbe4ee;
     --border-strong: #cbd5e1;
-
     --accent: #2563eb;
     --accent-strong: #1d4ed8;
     --accent-soft: #dbeafe;
     --accent-soft-2: #eff6ff;
     --accent-ring: rgba(37, 99, 235, 0.22);
-
     --success: #059669;
     --danger: #dc2626;
-
     --day-bg: #e2e8f0;
     --day-text: #334155;
     --day-border: #cbd5e1;
-
-    --today-bg: #eff6ff;
-    --today-text: #1d4ed8;
-    --today-border: #93c5fd;
-
     --timer-bg: #eff6ff;
     --timer-text: #1d4ed8;
     --timer-border: #bfdbfe;
@@ -43,24 +35,16 @@
     --text-muted: #94a3b8;
     --border: #253247;
     --border-strong: #334155;
-
     --accent: #60a5fa;
     --accent-strong: #93c5fd;
     --accent-soft: rgba(96, 165, 250, 0.16);
     --accent-soft-2: rgba(96, 165, 250, 0.12);
     --accent-ring: rgba(96, 165, 250, 0.28);
-
     --success: #34d399;
     --danger: #f87171;
-
     --day-bg: #1e293b;
     --day-text: #cbd5e1;
     --day-border: #334155;
-
-    --today-bg: rgba(96, 165, 250, 0.14);
-    --today-text: #bfdbfe;
-    --today-border: rgba(147, 197, 253, 0.45);
-
     --timer-bg: rgba(96, 165, 250, 0.14);
     --timer-text: #bfdbfe;
     --timer-border: rgba(147, 197, 253, 0.35);
@@ -87,7 +71,8 @@ h4 {
     color: var(--text-main);
 }
 
-#muscleGroup {
+#muscleGroup,
+.text-blue-500 {
     color: var(--accent) !important;
 }
 
@@ -95,7 +80,7 @@ h4 {
     background-color: var(--card-bg);
     border-color: var(--border) !important;
     box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
-    transition: transform 0.2s, box-shadow 0.2s, background-color 0.3s ease, border-color 0.3s ease;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.3s ease, border-color 0.3s ease;
 }
 
 .dark-mode .card {
@@ -128,6 +113,296 @@ h4 {
     color: var(--danger) !important;
 }
 
+.hidden {
+    display: none;
+}
+
+.font-semibold,
+.font-bold {
+    letter-spacing: -0.01em;
+}
+
+.panel-toggle,
+.config-btn,
+.save-btn {
+    border: 1px solid var(--border);
+    background: var(--card-bg-soft);
+    color: var(--text-main);
+    transition: all 0.2s ease;
+}
+
+.panel-toggle:hover,
+.config-btn:hover,
+.save-btn:hover {
+    border-color: rgba(37, 99, 235, 0.35);
+    background: var(--accent-soft-2);
+    color: var(--accent-strong);
+}
+
+.config-btn {
+    padding: 0.55rem 0.85rem;
+    border-radius: 0.85rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.config-btn-secondary {
+    background: transparent;
+}
+
+.config-btn-danger {
+    border-color: rgba(220, 38, 38, 0.22);
+    color: var(--danger);
+}
+
+.config-btn-danger:hover {
+    background: rgba(220, 38, 38, 0.08);
+    border-color: rgba(220, 38, 38, 0.36);
+    color: var(--danger);
+}
+
+.save-btn {
+    padding: 0.85rem 1rem;
+    border-radius: 1rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+    color: #fff;
+    border-color: transparent;
+    box-shadow: 0 12px 24px var(--accent-ring);
+}
+
+.save-btn:hover {
+    color: #fff;
+    filter: brightness(1.02);
+}
+
+.settings-grid {
+    display: grid;
+    gap: 0.85rem;
+}
+
+.setting-card,
+.config-form,
+.json-panel,
+.manager-card,
+.exercise-editor-card {
+    border: 1px solid var(--border);
+    background: var(--card-bg-soft);
+    border-radius: 1rem;
+}
+
+.setting-card {
+    display: block;
+    padding: 1rem;
+}
+
+.config-form,
+.json-panel {
+    padding: 1rem;
+}
+
+.field {
+    display: grid;
+    gap: 0.4rem;
+}
+
+.field span {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--text-soft);
+}
+
+.field input,
+.field select,
+.field textarea,
+.json-editor {
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: 0.85rem;
+    background: var(--card-bg);
+    color: var(--text-main);
+    padding: 0.8rem 0.9rem;
+    outline: none;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.field input:focus,
+.field select:focus,
+.field textarea:focus,
+.json-editor:focus,
+.weight-input-wrap input:focus {
+    border-color: rgba(37, 99, 235, 0.45);
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+}
+
+.field textarea {
+    min-height: 92px;
+    resize: vertical;
+}
+
+.json-editor {
+    min-height: 220px;
+    font-family: Consolas, Monaco, monospace;
+    resize: vertical;
+}
+
+.manager-card,
+.exercise-editor-card {
+    padding: 0.95rem;
+}
+
+.manager-card {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.85rem;
+    align-items: center;
+}
+
+.manager-card-main {
+    display: flex;
+    gap: 0.85rem;
+    align-items: center;
+    min-width: 0;
+}
+
+.manager-thumb {
+    width: 58px;
+    height: 58px;
+    border-radius: 1rem;
+    object-fit: cover;
+    border: 1px solid var(--border);
+    background: var(--surface-muted);
+}
+
+.manager-thumb-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    color: var(--accent);
+}
+
+.manager-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.25rem 0.55rem;
+    border-radius: 999px;
+    background: var(--accent-soft);
+    color: var(--accent-strong);
+    font-size: 0.7rem;
+    font-weight: 700;
+}
+
+.manager-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.exercise-editor-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.75rem;
+    align-items: center;
+    margin-bottom: 0.85rem;
+}
+
+.day-selector {
+    padding-top: 1.25rem;
+    padding-bottom: 0.75rem;
+    padding-inline: 0.125rem;
+    overflow-y: visible;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+
+.no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+.day-btn {
+    position: relative;
+    background: var(--day-bg);
+    color: var(--day-text);
+    border: 1px solid var(--day-border);
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.05);
+    transition: all 0.2s ease;
+    overflow: visible;
+}
+
+.day-btn:hover {
+    background: var(--card-bg-soft);
+    color: var(--text-main);
+    border-color: rgba(37, 99, 235, 0.32);
+    transform: translateY(-1px);
+}
+
+.day-btn.is-active {
+    background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+    color: #fff;
+    border-color: transparent;
+    box-shadow: 0 8px 20px var(--accent-ring);
+}
+
+.day-btn.is-today::after {
+    content: "HOJE";
+    position: absolute;
+    top: -14px;
+    right: 50%;
+    transform: translateX(50%);
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    line-height: 1;
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: #fff;
+    color: var(--accent-strong);
+    border: 1px solid rgba(255, 255, 255, 0.85);
+    box-shadow: 0 6px 14px rgba(15, 23, 42, 0.16);
+    white-space: nowrap;
+    z-index: 1;
+}
+
+.dark-mode .day-btn.is-today::after {
+    background: #0f172a;
+    border-color: rgba(147, 197, 253, 0.32);
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.35);
+}
+
+.workout-hero {
+    border-radius: 1.25rem;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    background: var(--card-bg-soft);
+}
+
+.workout-hero-image {
+    width: 100%;
+    height: 180px;
+    object-fit: cover;
+    display: block;
+}
+
+.exercise-media {
+    border-radius: 1rem;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    background: var(--card-bg-soft);
+}
+
+.exercise-image {
+    width: 100%;
+    height: 150px;
+    object-fit: cover;
+    display: block;
+}
+
 .series-dot {
     width: 32px;
     height: 32px;
@@ -146,7 +421,7 @@ h4 {
 .series-dot.active {
     background: linear-gradient(135deg, var(--accent), var(--accent-strong));
     border-color: transparent;
-    color: #ffffff;
+    color: #fff;
     transform: scale(1.08);
     box-shadow: 0 0 0 4px var(--accent-ring);
 }
@@ -154,85 +429,6 @@ h4 {
 .timer-progress {
     transition: width 1s linear;
     background: linear-gradient(90deg, var(--accent), var(--accent-strong)) !important;
-}
-
-.hidden {
-    display: none;
-}
-
-.tab-active {
-    border-bottom: 3px solid var(--accent);
-    color: var(--accent);
-}
-
-#themeToggle {
-    color: var(--text-soft);
-    background: transparent;
-    border: 1px solid transparent;
-    transition: all 0.2s ease;
-}
-
-#themeToggle:hover {
-    background: var(--card-bg-soft) !important;
-    border-color: var(--border);
-    color: var(--text-main);
-}
-
-.day-btn {
-    position: relative;
-    background: var(--day-bg) !important;
-    color: var(--day-text) !important;
-    border: 1px solid var(--day-border);
-    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.05);
-    transition: all 0.2s ease;
-    overflow: visible;
-}
-
-.day-btn:hover {
-    background: var(--card-bg-soft) !important;
-    color: var(--text-main) !important;
-    border-color: var(--today-border);
-    transform: translateY(-1px);
-}
-
-.day-btn.bg-blue-500,
-.day-btn.text-white,
-.day-btn.bg-blue-500.text-white {
-    background: linear-gradient(135deg, var(--accent), var(--accent-strong)) !important;
-    color: #ffffff !important;
-    border-color: transparent !important;
-    box-shadow: 0 8px 7px var(--accent-ring);
-}
-
-.day-btn.bg-blue-500::after,
-.day-btn.text-white::after,
-.day-btn.bg-blue-500.text-white::after {
-    content: "HOJE";
-    position: absolute;
-    top: -14px;
-    right: 50%;
-    transform: translateX(50%);
-    font-size: 9px;
-    font-weight: 800;
-    letter-spacing: 0.04em;
-    line-height: 1;
-    padding: 4px 8px;
-    border-radius: 999px;
-    background: #ffffff;
-    color: var(--accent-strong);
-    border: 1px solid rgba(255, 255, 255, 0.85);
-    box-shadow: 0 6px 14px rgba(15, 23, 42, 0.16);
-    white-space: nowrap;
-    z-index: 1;
-}
-
-.dark-mode .day-btn.bg-blue-500::after,
-.dark-mode .day-btn.text-white::after,
-.dark-mode .day-btn.bg-blue-500.text-white::after {
-    background: #0f172a;
-    color: var(--accent-strong);
-    border-color: rgba(147, 197, 253, 0.32);
-    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.35);
 }
 
 button[onclick^="showSwaps"] {
@@ -244,7 +440,7 @@ button[onclick^="showSwaps"] {
 
 button[onclick^="showSwaps"]:hover {
     background: var(--accent-soft-2) !important;
-    border-color: var(--today-border) !important;
+    border-color: rgba(37, 99, 235, 0.32) !important;
     color: var(--accent-strong) !important;
 }
 
@@ -283,9 +479,24 @@ button[onclick^="startTimer"][data-running="true"] {
     transition: all 0.2s ease;
 }
 
+.swap-option {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.swap-option-image {
+    width: 46px;
+    height: 46px;
+    border-radius: 0.8rem;
+    object-fit: cover;
+    flex-shrink: 0;
+    border: 1px solid var(--border);
+}
+
 [id^="swaps-"] button:hover {
     background: var(--accent-soft-2) !important;
-    border-color: var(--today-border) !important;
+    border-color: rgba(37, 99, 235, 0.32) !important;
     color: var(--accent-strong) !important;
 }
 
@@ -296,42 +507,56 @@ button[onclick^="startTimer"][data-running="true"] {
     box-shadow: none !important;
 }
 
-.text-blue-500 {
-    color: var(--accent) !important;
+.weight-control {
+    border-top: 1px dashed var(--border);
+    padding-top: 0.9rem;
 }
 
-.font-semibold,
-.font-bold {
-    letter-spacing: -0.01em;
+.weight-label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    color: var(--text-soft);
+    font-size: 0.9rem;
+    font-weight: 600;
 }
 
-.no-scrollbar::-webkit-scrollbar {
-    display: none;
+.weight-input-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
 }
 
-.no-scrollbar {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
+.weight-input-wrap input {
+    width: 100px;
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    background: var(--card-bg);
+    color: var(--text-main);
+    padding: 0.55rem 0.7rem;
+    outline: none;
 }
 
-.day-selector {
-    padding-top: 1.25rem;
-    padding-bottom: 0.75rem;
-    padding-inline: 0.125rem;
-    overflow-y: visible;
-}
-
-@keyframes pulse-ring {
-    0% {
-        transform: scale(.33);
+@media (max-width: 640px) {
+    .manager-card,
+    .weight-label,
+    .exercise-editor-head {
+        flex-direction: column;
+        align-items: stretch;
     }
 
-    80%,
-    100% {
-        opacity: 0;
+    .manager-actions {
+        justify-content: flex-start;
+    }
+
+    .settings-grid {
+        grid-template-columns: 1fr;
     }
 }
 
-.animate-finish {
-    animation: bounce 0.5s ease infinite alternate;
+@media (min-width: 641px) {
+    .settings-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
 }

@@ -2,13 +2,12 @@
 <html lang="pt-br">
 
 <head>
-
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#0f172a">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Treino ABCD">
+    <meta name="apple-mobile-web-app-title" content="Treino Personalizado">
     <link rel="apple-touch-icon" href="./appicon.png">
     <link rel="manifest" href="./manifest.webmanifest">
     <link rel="stylesheet" href="./styles.css">
@@ -18,12 +17,9 @@
 </head>
 
 <body class="min-h-screen pb-20">
-
-    <!-- Header & Theme Toggle -->
-    <header
-        class="p-4 flex justify-between items-center bg-white dark:bg-slate-900 shadow-sm sticky top-0 z-50 transition-colors">
+    <header class="p-4 flex justify-between items-center bg-white dark:bg-slate-900 shadow-sm sticky top-0 z-50 transition-colors">
         <h1 class="text-xl font-bold">Treino <span class="text-blue-500">Personalizado</span></h1>
-        <button id="themeToggle" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-slate-800">
+        <button id="themeToggle" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-slate-800" aria-label="Alternar tema">
             <svg id="sunIcon" class="w-6 h-6 hidden" fill="currentColor" viewBox="0 0 20 20">
                 <path
                     d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z">
@@ -36,54 +32,132 @@
     </header>
 
     <main class="max-w-md mx-auto p-4">
-        <!-- Regras e Aquecimento -->
-        <div class="card p-4 rounded-xl mb-6 border border-slate-200 dark:border-slate-700 shadow-sm">
+        <section class="card p-4 rounded-xl mb-6 border border-slate-200 dark:border-slate-700 shadow-sm">
             <h2 class="font-bold mb-2 flex items-center gap-2">
-                <span>⚠️</span> Regras Gerais
+                <span>⚠️</span> Regras gerais
             </h2>
             <ul class="text-sm space-y-1 opacity-80">
-                <li>• Aquecimento: 5-10 min caminhada/bike.</li>
+                <li>• Aquecimento: 5-10 min caminhada ou bike.</li>
                 <li>• Descanso: 45s a 90s.</li>
-                <li>• Carga limpa, sem prender a respiração.</li>
-                <li>• Não ir até a falha nas primeiras semanas.</li>
+                <li>• Carga limpa, sem prender a respiracao.</li>
+                <li>• Evite falha total nas primeiras semanas.</li>
             </ul>
-        </div>
+        </section>
 
-        <!-- Seletor de Dias -->
-        <div class="day-selector flex overflow-x-auto gap-3 mb-6 no-scrollbar">
-            <button onclick="changeDay(1)" data-day="1"
-                class="day-btn px-4 py-2 rounded-full whitespace-nowrap bg-gray-200 dark:bg-slate-800 text-sm font-semibold">SEG
-                - A</button>
-            <button onclick="changeDay(2)" data-day="2"
-                class="day-btn px-4 py-2 rounded-full whitespace-nowrap bg-gray-200 dark:bg-slate-800 text-sm font-semibold">TER
-                - B</button>
-            <button onclick="changeDay(4)" data-day="4"
-                class="day-btn px-4 py-2 rounded-full whitespace-nowrap bg-gray-200 dark:bg-slate-800 text-sm font-semibold">QUI
-                - C</button>
-            <button onclick="changeDay(5)" data-day="5"
-                class="day-btn px-4 py-2 rounded-full whitespace-nowrap bg-gray-200 dark:bg-slate-800 text-sm font-semibold">SEX
-                - D</button>
-            <button onclick="changeDay(0)" data-day="0"
-                class="day-btn px-4 py-2 rounded-full whitespace-nowrap bg-gray-200 dark:bg-slate-800 text-sm font-semibold">OUTROS</button>
-        </div>
+        <section class="card p-4 rounded-xl mb-6 border border-slate-200 dark:border-slate-700 shadow-sm">
+            <div class="flex items-center justify-between gap-3">
+                <div>
+                    <h2 class="font-bold">Personalizar ficha</h2>
+                    <p class="text-sm opacity-80">Edite seus treinos na tela ou por JSON. Tudo fica salvo no navegador.</p>
+                </div>
+                <button id="toggleConfigBtn" class="panel-toggle px-3 py-2 rounded-lg text-sm font-semibold" type="button">Abrir</button>
+            </div>
 
-        <!-- Container de Treino -->
+            <div id="configPanel" class="hidden mt-4 space-y-5">
+                <div class="settings-grid">
+                    <label class="setting-card">
+                        <span class="font-semibold">Controle de peso</span>
+                        <span class="text-sm opacity-80">Mostra um campo opcional de carga em cada exercicio.</span>
+                        <input id="weightTrackingToggle" type="checkbox" class="mt-3 h-4 w-4">
+                    </label>
+
+                    <div class="setting-card">
+                        <span class="font-semibold">Acoes rapidas</span>
+                        <div class="mt-3 flex flex-wrap gap-2">
+                            <button id="addWorkoutBtn" class="config-btn" type="button">Novo treino</button>
+                            <button id="resetDefaultsBtn" class="config-btn config-btn-secondary" type="button">Usar padrao</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <h3 class="font-semibold mb-3">Treinos salvos</h3>
+                    <div id="workoutManagerList" class="space-y-3"></div>
+                </div>
+
+                <form id="workoutForm" class="hidden config-form space-y-4">
+                    <div class="flex items-center justify-between gap-3">
+                        <h3 id="workoutFormTitle" class="font-semibold">Editar treino</h3>
+                        <button id="cancelWorkoutEditBtn" type="button" class="config-btn config-btn-secondary">Cancelar</button>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <label class="field">
+                            <span>Badge</span>
+                            <input id="workoutTabLabel" type="text" maxlength="18" placeholder="SEG - A">
+                        </label>
+                        <label class="field">
+                            <span>Dia da semana</span>
+                            <select id="workoutDayNumber">
+                                <option value="1">Segunda</option>
+                                <option value="2">Terca</option>
+                                <option value="3">Quarta</option>
+                                <option value="4">Quinta</option>
+                                <option value="5">Sexta</option>
+                                <option value="6">Sabado</option>
+                                <option value="0">Domingo</option>
+                            </select>
+                        </label>
+                    </div>
+
+                    <label class="field">
+                        <span>Nome do treino</span>
+                        <input id="workoutName" type="text" placeholder="Superior A">
+                    </label>
+
+                    <label class="field">
+                        <span>Descricao</span>
+                        <input id="workoutDesc" type="text" placeholder="Peito + Ombro + Triceps">
+                    </label>
+
+                    <label class="field">
+                        <span>Imagem (URL opcional)</span>
+                        <input id="workoutImageUrl" type="url" placeholder="https://...">
+                    </label>
+
+                    <div>
+                        <div class="flex items-center justify-between gap-3 mb-3">
+                            <h4 class="font-semibold">Exercicios</h4>
+                            <button id="addExerciseBtn" type="button" class="config-btn">Adicionar exercicio</button>
+                        </div>
+                        <div id="exerciseEditorList" class="space-y-3"></div>
+                    </div>
+
+                    <button type="submit" class="save-btn w-full">Salvar treino</button>
+                </form>
+
+                <div class="json-panel space-y-3">
+                    <div class="flex items-center justify-between gap-3">
+                        <h3 class="font-semibold">Importar / exportar JSON</h3>
+                        <div class="flex flex-wrap gap-2">
+                            <button id="fillExampleJsonBtn" class="config-btn" type="button">Exemplo</button>
+                            <button id="exportJsonBtn" class="config-btn config-btn-secondary" type="button">Exportar</button>
+                            <button id="importJsonBtn" class="config-btn" type="button">Importar</button>
+                        </div>
+                    </div>
+                    <p class="text-sm opacity-80">Aceita um objeto com `workouts` e, se quiser, `settings`.</p>
+                    <textarea id="jsonEditor" class="json-editor" spellcheck="false"></textarea>
+                </div>
+            </div>
+        </section>
+
+        <div id="daySelector" class="day-selector flex overflow-x-auto gap-3 mb-6 no-scrollbar"></div>
+
         <div id="workoutTitle" class="mb-4">
-            <h2 class="text-2xl font-bold" id="dayLabel">Treino de Hoje</h2>
+            <h2 class="text-2xl font-bold" id="dayLabel">Treino de hoje</h2>
             <p id="muscleGroup" class="text-blue-500 font-semibold"></p>
+            <div id="workoutHero" class="workout-hero hidden mt-4">
+                <img id="workoutHeroImage" alt="Imagem do treino" class="workout-hero-image">
+            </div>
         </div>
 
-        <div id="exercisesList" class="space-y-4">
-            <!-- Exercícios serão injetados aqui via JS -->
-        </div>
+        <div id="exercisesList" class="space-y-4"></div>
 
-        <!-- Mensagem de Descanso -->
         <div id="restMessage" class="hidden mt-8 text-center p-8">
-            <p class="text-xl opacity-50">Hoje é dia de descanso! Recuperação é parte do treino. 🧘‍♂️</p>
+            <p class="text-xl opacity-50">Hoje e dia de descanso. Recuperacao tambem e treino.</p>
         </div>
     </main>
 
-    <!-- Som de Alerta (Beep) -->
     <audio id="beepSound" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3"></audio>
 
     <script src="./script.js"></script>
