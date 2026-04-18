@@ -362,8 +362,9 @@ function setConfigOpen(open) {
 }
 
 function renderDayButtons() {
+    const hasWorkoutToday = state.workouts.some((workout) => workout.dayNumber === state.currentDay);
     const buttons = sortWorkouts(state.workouts).map((workout) => {
-        const isToday = workout.dayNumber === state.currentDay;
+        const isToday = hasWorkoutToday && workout.dayNumber === state.currentDay;
         const isActive = workout.id === state.activeWorkoutId;
         const classes = ['day-btn', 'px-4', 'py-2', 'rounded-full', 'whitespace-nowrap', 'text-sm', 'font-semibold'];
         if (isActive) {
@@ -375,7 +376,7 @@ function renderDayButtons() {
         return `<button type="button" onclick="changeWorkout('${workout.id}')" class="${classes.join(' ')}">${escapeHtml(workout.tabLabel)}</button>`;
     });
 
-    buttons.push(`<button type="button" onclick="changeWorkout('rest')" class="day-btn px-4 py-2 rounded-full whitespace-nowrap text-sm font-semibold ${state.activeWorkoutId === 'rest' ? 'is-active' : ''}">OUTROS</button>`);
+    buttons.push(`<button type="button" onclick="changeWorkout('rest')" class="day-btn px-4 py-2 rounded-full whitespace-nowrap text-sm font-semibold ${state.activeWorkoutId === 'rest' ? 'is-active' : ''} ${hasWorkoutToday ? '' : 'is-today'}">OUTROS</button>`);
     daySelector.innerHTML = buttons.join('');
 }
 
