@@ -82,6 +82,7 @@ const state = {
     swaps: {},
     timers: {},
     audioUnlocked: false,
+    pendingBeepSound: false,
     settings: loadSettings(),
     workouts: loadWorkouts(),
     weights: loadWeights(),
@@ -440,6 +441,31 @@ function unlockAudio() {
         .catch(() => {
             beepSound.volume = 1;
         });
+}
+
+function playBeepSound() {
+    if (!beepSound) {
+        return;
+    }
+
+    beepSound.currentTime = 0;
+    beepSound.play()
+        .then(() => {
+            state.pendingBeepSound = false;
+            state.audioUnlocked = true;
+        })
+        .catch(() => {
+            state.pendingBeepSound = true;
+            console.log('Erro ao tocar som: interacao necessaria');
+        });
+}
+
+function flushPendingBeepSound() {
+    if (!state.pendingBeepSound || document.hidden) {
+        return;
+    }
+
+    playBeepSound();
 }
 
 function setConfigOpen(open) {
@@ -1332,8 +1358,7 @@ function finishTimer(exerciseId, button, progressBar, shouldPlaySound = true) {
     updateTimerButtonUI(button, progressBar, 0);
 
     if (shouldPlaySound) {
-        beepSound.currentTime = 0;
-        beepSound.play().catch(() => console.log('Erro ao tocar som: interacao necessaria'));
+        playBeepSound();
     }
 }
 
@@ -1699,11 +1724,15 @@ document.addEventListener('visibilitychange', () => {
     }
 
     syncWakeLock();
+    flushPendingBeepSound();
 
     Object.keys(state.timers).forEach((exerciseId) => {
         syncTimerUI(exerciseId, true);
     });
 });
+
+window.addEventListener('focus', flushPendingBeepSound);
+window.addEventListener('pointerdown', flushPendingBeepSound, { passive: true });
 
 window.addEventListener('beforeinstallprompt', (event) => {
     event.preventDefault();
