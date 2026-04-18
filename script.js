@@ -244,7 +244,7 @@ function getInitialWorkoutId() {
     if (todayWorkout) {
         return todayWorkout.id;
     }
-    return state.workouts[0] ? state.workouts[0].id : 'rest';
+    return 'rest';
 }
 
 function escapeHtml(value) {
