@@ -128,6 +128,7 @@ const workoutFormTitle = document.getElementById('workoutFormTitle');
 const cancelWorkoutEditBtn = document.getElementById('cancelWorkoutEditBtn');
 const addWorkoutBtn = document.getElementById('addWorkoutBtn');
 const resetDefaultsBtn = document.getElementById('resetDefaultsBtn');
+const testSoundBtn = document.getElementById('testSoundBtn');
 const addExerciseBtn = document.getElementById('addExerciseBtn');
 const exerciseEditorList = document.getElementById('exerciseEditorList');
 const fillExampleJsonBtn = document.getElementById('fillExampleJsonBtn');
@@ -1708,6 +1709,11 @@ restSecondsInput.addEventListener('blur', (event) => {
 addWorkoutBtn.addEventListener('click', () => {
     openWorkoutForm(createDraftWorkout());
     setConfigOpen(true);
+});
+
+testSoundBtn.addEventListener('click', async () => {
+    await unlockAudio();
+    playBeepSound();
 });
 
 resetDefaultsBtn.addEventListener('click', () => {
