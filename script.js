@@ -85,7 +85,14 @@ const state = {
     editingWorkoutId: null,
     configOpen: false,
     deferredInstallPrompt: null,
-    installPromptVisible: false
+    installPromptVisible: false,
+    imageSearch: {
+        provider: 'wikimedia',
+        query: '',
+        offset: 0,
+        pageSize: 10,
+        hasMore: false
+    }
 };
 
 const themeToggle = document.getElementById('themeToggle');
@@ -132,8 +139,12 @@ const imageSearchInput = document.getElementById('imageSearchInput');
 const submitImageSearchBtn = document.getElementById('submitImageSearchBtn');
 const imageSearchStatus = document.getElementById('imageSearchStatus');
 const imageSearchResults = document.getElementById('imageSearchResults');
+const imageSearchProviders = document.getElementById('imageSearchProviders');
+const loadMoreImageResultsBtn = document.getElementById('loadMoreImageResultsBtn');
 
-const IMAGE_SEARCH_ENDPOINT = 'https://commons.wikimedia.org/w/api.php';
+const WIKIMEDIA_IMAGE_SEARCH_ENDPOINT = 'https://commons.wikimedia.org/w/api.php';
+const OPENVERSE_IMAGE_SEARCH_ENDPOINT = 'https://api.openverse.org/v1/images/';
+const FLICKR_PUBLIC_FEED_ENDPOINT = 'https://www.flickr.com/services/feeds/photos_public.gne';
 const IMAGE_SEARCH_DEFAULT_TERM = 'academia exercicio';
 
 function cloneDefaultWorkouts() {
@@ -372,12 +383,12 @@ function setConfigOpen(open) {
 }
 
 function getDayButtonTarget() {
-    return daySelector.querySelector('[data-day-target="today"]')
-        || daySelector.querySelector('[data-day-target="active"]')
+    return daySelector.querySelector('[data-day-target="active"]')
+        || daySelector.querySelector('[data-day-target="today"]')
         || null;
 }
 
-function ensureDayButtonVisibility() {
+function ensureDayButtonVisibility(behavior = 'auto') {
     const target = getDayButtonTarget();
     if (!target) {
         return;
@@ -385,7 +396,7 @@ function ensureDayButtonVisibility() {
 
     window.requestAnimationFrame(() => {
         target.scrollIntoView({
-            behavior: 'auto',
+            behavior,
             block: 'nearest',
             inline: 'center'
         });
@@ -731,6 +742,21 @@ function syncWeightToggle() {
     weightTrackingToggle.checked = state.settings.enableWeightTracking;
 }
 
+function setImageSearchProvider(provider) {
+    state.imageSearch.provider = ['openverse', 'flickr'].includes(provider) ? provider : 'wikimedia';
+    imageSearchProviders.querySelectorAll('[data-provider]').forEach((button) => {
+        button.classList.toggle('is-active', button.dataset.provider === state.imageSearch.provider);
+        button.classList.toggle('config-btn-secondary', button.dataset.provider !== state.imageSearch.provider);
+    });
+}
+
+function resetImageSearchPagination(query = '') {
+    state.imageSearch.query = query;
+    state.imageSearch.offset = 0;
+    state.imageSearch.hasMore = false;
+    loadMoreImageResultsBtn.classList.add('hidden');
+}
+
 function getImageSearchStatusLabel(isLoading, message = '') {
     if (isLoading) {
         return 'Buscando imagens...';
@@ -743,13 +769,19 @@ function setImageSearchStatus(message = '', isLoading = false) {
     imageSearchStatus.classList.toggle('hidden', !imageSearchStatus.textContent);
 }
 
-function renderImageSearchResults(results = []) {
+function updateLoadMoreVisibility() {
+    loadMoreImageResultsBtn.classList.toggle('hidden', !state.imageSearch.hasMore);
+}
+
+function renderImageSearchResults(results = [], append = false) {
     if (!results.length) {
-        imageSearchResults.innerHTML = '<div class="image-search-empty">Nenhuma imagem encontrada. Tente outro termo.</div>';
+        if (!append) {
+            imageSearchResults.innerHTML = '<div class="image-search-empty">Nenhuma imagem encontrada. Tente outro termo.</div>';
+        }
         return;
     }
 
-    imageSearchResults.innerHTML = results.map((result) => `
+    const markup = results.map((result) => `
         <button type="button" class="image-search-item" onclick="applyImageSearchResult('${escapeForSingleQuotedJs(result.url)}')">
             <img src="${escapeHtml(result.thumbnail || result.url)}" alt="${escapeHtml(result.title)}" class="image-search-thumb" loading="lazy">
             <div class="image-search-body">
@@ -758,10 +790,13 @@ function renderImageSearchResults(results = []) {
             </div>
         </button>
     `).join('');
+
+    imageSearchResults.innerHTML = append ? `${imageSearchResults.innerHTML}${markup}` : markup;
 }
 
 function clearImageSearchResults() {
     imageSearchResults.innerHTML = '';
+    updateLoadMoreVisibility();
 }
 
 function getImageSearchSeedTerm(input) {
@@ -785,10 +820,13 @@ function openImageSearch(targetInput, seedTerm = '') {
     }
 
     imageSearchModal.classList.remove('hidden');
-    imageSearchInput.value = seedTerm || getImageSearchSeedTerm(targetInput);
+    const initialQuery = seedTerm || getImageSearchSeedTerm(targetInput);
+    imageSearchInput.value = initialQuery;
     imageSearchModal.dataset.targetSelector = targetInput.id
         ? `#${targetInput.id}`
         : `[data-exercise-id="${targetInput.dataset.exerciseId}"][data-field="${targetInput.dataset.field}"]`;
+    resetImageSearchPagination(initialQuery);
+    setImageSearchProvider(state.imageSearch.provider);
     setImageSearchStatus('');
     clearImageSearchResults();
     imageSearchInput.focus();
@@ -808,10 +846,126 @@ function closeImageSearch() {
     imageSearchModal.classList.add('hidden');
     delete imageSearchModal.dataset.targetSelector;
     setImageSearchStatus('');
+    resetImageSearchPagination('');
     clearImageSearchResults();
 }
 
-async function searchImages() {
+function getWikimediaSearchUrl(query) {
+    const url = new URL(WIKIMEDIA_IMAGE_SEARCH_ENDPOINT);
+    url.searchParams.set('action', 'query');
+    url.searchParams.set('generator', 'search');
+    url.searchParams.set('gsrsearch', query);
+    url.searchParams.set('gsrnamespace', '6');
+    url.searchParams.set('gsrlimit', String(state.imageSearch.pageSize));
+    url.searchParams.set('gsroffset', String(state.imageSearch.offset));
+    url.searchParams.set('prop', 'imageinfo');
+    url.searchParams.set('iiprop', 'url');
+    url.searchParams.set('iiurlwidth', '480');
+    url.searchParams.set('format', 'json');
+    url.searchParams.set('origin', '*');
+    return url;
+}
+
+async function searchWikimediaImages(query) {
+    const response = await fetch(getWikimediaSearchUrl(query).toString());
+    if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+    }
+
+    const payload = await response.json();
+    const pages = Object.values(payload.query?.pages || {});
+    return {
+        results: pages.map((page) => {
+            const imageInfo = page.imageinfo?.[0];
+            return {
+                title: String(page.title || '').replace(/^File:/i, ''),
+                url: imageInfo?.url || '',
+                thumbnail: imageInfo?.thumburl || imageInfo?.url || ''
+            };
+        }).filter((item) => item.url),
+        hasMore: Boolean(pages.length === state.imageSearch.pageSize)
+    };
+}
+
+function getOpenverseSearchUrl(query) {
+    const url = new URL(OPENVERSE_IMAGE_SEARCH_ENDPOINT);
+    url.searchParams.set('q', query);
+    url.searchParams.set('page_size', String(state.imageSearch.pageSize));
+    url.searchParams.set('page', String(Math.floor(state.imageSearch.offset / state.imageSearch.pageSize) + 1));
+    return url;
+}
+
+async function searchOpenverseImages(query) {
+    const response = await fetch(getOpenverseSearchUrl(query).toString(), {
+        headers: {
+            'User-Agent': 'TreinoApp/1.0 ImageSearch'
+        }
+    });
+    if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+    }
+
+    const payload = await response.json();
+    return {
+        results: (payload.results || []).map((item) => ({
+            title: String(item.title || 'Imagem'),
+            url: item.url || '',
+            thumbnail: item.thumbnail || item.url || ''
+        })).filter((item) => item.url),
+        hasMore: Boolean(payload.page_count && payload.page < payload.page_count)
+    };
+}
+
+function loadFlickrFeed(query) {
+    return new Promise((resolve, reject) => {
+        const callbackName = 'jsonFlickrFeed';
+        const previousCallback = window[callbackName];
+        const script = document.createElement('script');
+        const cleanup = () => {
+            window[callbackName] = previousCallback;
+            script.remove();
+        };
+        const url = new URL(FLICKR_PUBLIC_FEED_ENDPOINT);
+        const tags = query
+            .split(/\s+/)
+            .map((item) => item.trim())
+            .filter(Boolean)
+            .join(',');
+
+        url.searchParams.set('format', 'json');
+        url.searchParams.set('lang', 'pt-br');
+        url.searchParams.set('tagmode', 'any');
+        if (tags) {
+            url.searchParams.set('tags', tags);
+        }
+
+        window[callbackName] = (payload) => {
+            cleanup();
+            resolve(payload);
+        };
+
+        script.onerror = () => {
+            cleanup();
+            reject(new Error('flickr-feed-error'));
+        };
+        script.src = url.toString();
+        document.body.appendChild(script);
+    });
+}
+
+async function searchFlickrImages(query) {
+    const payload = await loadFlickrFeed(query);
+    return {
+        results: (payload.items || []).map((item) => ({
+            title: String(item.title || 'Imagem Flickr'),
+            url: item.media?.m || '',
+            thumbnail: item.media?.m || ''
+        })).filter((item) => item.url),
+        hasMore: false
+    };
+}
+
+async function searchImages({ append = false } = {}) {
     const query = imageSearchInput.value.trim();
     if (!query) {
         setImageSearchStatus('Digite um termo para buscar.');
@@ -820,44 +974,42 @@ async function searchImages() {
         return;
     }
 
+    if (!append) {
+        resetImageSearchPagination(query);
+        clearImageSearchResults();
+    }
+
     setImageSearchStatus('', true);
-    clearImageSearchResults();
 
     try {
-        const url = new URL(IMAGE_SEARCH_ENDPOINT);
-        url.searchParams.set('action', 'query');
-        url.searchParams.set('generator', 'search');
-        url.searchParams.set('gsrsearch', query);
-        url.searchParams.set('gsrnamespace', '6');
-        url.searchParams.set('gsrlimit', '18');
-        url.searchParams.set('prop', 'imageinfo');
-        url.searchParams.set('iiprop', 'url');
-        url.searchParams.set('iiurlwidth', '480');
-        url.searchParams.set('format', 'json');
-        url.searchParams.set('origin', '*');
-
-        const response = await fetch(url.toString());
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
+        let response;
+        if (state.imageSearch.provider === 'openverse') {
+            response = await searchOpenverseImages(query);
+        } else if (state.imageSearch.provider === 'flickr') {
+            response = await searchFlickrImages(query);
+        } else {
+            response = await searchWikimediaImages(query);
         }
 
-        const payload = await response.json();
-        const pages = Object.values(payload.query?.pages || {});
-        const results = pages.map((page) => {
-            const imageInfo = page.imageinfo?.[0];
-            return {
-                title: String(page.title || '').replace(/^File:/i, ''),
-                url: imageInfo?.url || '',
-                thumbnail: imageInfo?.thumburl || imageInfo?.url || ''
-            };
-        }).filter((item) => item.url);
-
-        setImageSearchStatus(results.length ? `${results.length} imagem(ns) encontrada(s).` : 'Nenhuma imagem encontrada.');
-        renderImageSearchResults(results);
+        state.imageSearch.query = query;
+        state.imageSearch.offset += response.results.length;
+        state.imageSearch.hasMore = response.hasMore && response.results.length > 0;
+        setImageSearchStatus(
+            response.results.length
+                ? `${state.imageSearch.offset} imagem(ns) carregada(s) de ${state.imageSearch.provider === 'openverse' ? 'Openverse' : state.imageSearch.provider === 'flickr' ? 'Flickr' : 'Wikimedia Commons'}.`
+                : 'Nenhuma imagem encontrada.'
+        );
+        renderImageSearchResults(response.results, append);
+        updateLoadMoreVisibility();
     } catch (error) {
         console.error('Erro ao buscar imagens:', error);
-        setImageSearchStatus('Não foi possível buscar imagens agora.');
-        renderImageSearchResults([]);
+        state.imageSearch.hasMore = false;
+        updateLoadMoreVisibility();
+
+        setImageSearchStatus('Nao foi possivel buscar imagens agora.');
+        if (!append) {
+            renderImageSearchResults([]);
+        }
     }
 }
 
@@ -883,7 +1035,7 @@ function changeWorkout(workoutId) {
     state.activeWorkoutId = workoutId;
     renderDayButtons();
     renderExercises();
-    ensureDayButtonVisibility();
+    ensureDayButtonVisibility('smooth');
 }
 
 function incrementSeries(exerciseId, total) {
@@ -1166,6 +1318,22 @@ imageSearchInput.addEventListener('keydown', (event) => {
     }
 });
 
+imageSearchProviders.addEventListener('click', (event) => {
+    const trigger = event.target.closest('[data-provider]');
+    if (!trigger) {
+        return;
+    }
+
+    setImageSearchProvider(trigger.dataset.provider);
+    resetImageSearchPagination(imageSearchInput.value.trim());
+    clearImageSearchResults();
+    setImageSearchStatus('');
+});
+
+loadMoreImageResultsBtn.addEventListener('click', () => {
+    searchImages({ append: true });
+});
+
 imageSearchModal.addEventListener('click', (event) => {
     if (event.target === imageSearchModal) {
         closeImageSearch();
@@ -1212,6 +1380,7 @@ window.applyImageSearchResult = applyImageSearchResult;
 
 window.onload = () => {
     syncWeightToggle();
+    setImageSearchProvider(state.imageSearch.provider);
     updateJsonEditorWithExample();
     state.activeWorkoutId = getInitialWorkoutId();
     renderAll();

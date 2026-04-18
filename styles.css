@@ -338,7 +338,7 @@ h4 {
     color: var(--day-text);
     border: 1px solid var(--day-border);
     box-shadow: 0 2px 6px rgba(15, 23, 42, 0.05);
-    transition: all 0.2s ease;
+    transition: all 0.22s ease, transform 0.22s ease, box-shadow 0.22s ease, background-color 0.22s ease;
     overflow: visible;
 }
 
@@ -354,6 +354,7 @@ h4 {
     color: #fff;
     border-color: transparent;
     box-shadow: 0 8px 20px var(--accent-ring);
+    transform: translateY(-1px) scale(1.02);
 }
 
 .day-btn.is-today::after {
@@ -612,6 +613,21 @@ button[onclick^="startTimer"][data-running="true"] {
     width: min(100%, 720px);
     max-height: min(82vh, 860px);
     overflow: auto;
+}
+
+.image-search-providers,
+.image-search-actions {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 1rem;
+    flex-wrap: wrap;
+}
+
+.image-provider-btn.is-active {
+    background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+    color: #fff;
+    border-color: transparent;
+    box-shadow: 0 12px 24px var(--accent-ring);
 }
 
 .image-search-toolbar {

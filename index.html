@@ -176,16 +176,24 @@
 
     <div id="imageSearchModal" class="install-prompt hidden" role="dialog" aria-modal="true" aria-labelledby="imageSearchTitle">
         <div class="install-card image-search-card">
-            <button id="closeImageSearchBtn" class="install-close" type="button" aria-label="Fechar busca de imagens">Ã—</button>
+            <button id="closeImageSearchBtn" class="install-close" type="button" aria-label="Fechar busca de imagens">X</button>
             <p class="install-eyebrow">Banco de imagens</p>
             <h2 id="imageSearchTitle" class="install-title">Buscar imagem por termo</h2>
-            <p class="install-copy">A busca usa o Wikimedia Commons e salva o link direto da imagem no campo selecionado.</p>
+            <p class="install-copy">Pesquise no Wikimedia Commons ou no Openverse e salve o link direto no campo selecionado.</p>
+            <div id="imageSearchProviders" class="image-search-providers" role="tablist" aria-label="Fonte da busca">
+                <button type="button" class="config-btn image-provider-btn is-active" data-provider="wikimedia">Wikimedia</button>
+                <button type="button" class="config-btn config-btn-secondary image-provider-btn" data-provider="openverse">Openverse</button>
+                <button type="button" class="config-btn config-btn-secondary image-provider-btn" data-provider="flickr">Flickr</button>
+            </div>
             <div class="image-search-toolbar">
                 <input id="imageSearchInput" type="search" class="json-editor image-search-input" placeholder="Ex.: leg press, supino, costas academia">
                 <button id="submitImageSearchBtn" class="save-btn" type="button">Buscar</button>
             </div>
             <p id="imageSearchStatus" class="image-search-status hidden"></p>
             <div id="imageSearchResults" class="image-search-results"></div>
+            <div class="image-search-actions">
+                <button id="loadMoreImageResultsBtn" class="config-btn config-btn-secondary hidden" type="button">Carregar mais 10</button>
+            </div>
         </div>
     </div>
 
