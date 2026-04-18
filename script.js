@@ -529,21 +529,7 @@ function createBeepAudio() {
 }
 
 async function unlockAudio() {
-    try {
-        const audio = createBeepAudio();
-        audio.muted = true;
-        audio.volume = 0;
-        audio.currentTime = 0;
-        await audio.play();
-        audio.pause();
-        audio.currentTime = 0;
-        audio.muted = false;
-        audio.volume = 1;
-        state.audioUnlocked = true;
-        return true;
-    } catch (error) {
-        return false;
-    }
+    return state.audioUnlocked;
 }
 
 async function playBeepSound() {
@@ -563,6 +549,7 @@ async function playBeepSound() {
 }
 
 async function testSoundPlayback() {
+    await unlockAudio();
     const played = await playBeepSound();
 
     if (played && navigator.vibrate) {
@@ -1528,8 +1515,6 @@ async function startTimer(button) {
     const progressBar = card?.querySelector('.timer-progress');
     const exerciseId = button.dataset.exerciseId;
     const restDurationSeconds = getRestDurationSeconds();
-
-    await unlockAudio();
 
     if (!exerciseId || !progressBar || button.dataset.running === 'true') {
         return;
