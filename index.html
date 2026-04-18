@@ -112,7 +112,10 @@
 
                     <label class="field">
                         <span>Imagem (URL opcional)</span>
-                        <input id="workoutImageUrl" type="url" placeholder="https://...">
+                        <div class="image-field-row">
+                            <input id="workoutImageUrl" type="url" placeholder="https://...">
+                            <button id="searchWorkoutImageBtn" type="button" class="config-btn config-btn-secondary">Buscar imagem</button>
+                        </div>
                     </label>
 
                     <div>
@@ -168,6 +171,21 @@
                 <button id="installAppBtn" class="save-btn" type="button">Instalar app</button>
                 <button id="installLaterBtn" class="config-btn config-btn-secondary" type="button">Depois</button>
             </div>
+        </div>
+    </div>
+
+    <div id="imageSearchModal" class="install-prompt hidden" role="dialog" aria-modal="true" aria-labelledby="imageSearchTitle">
+        <div class="install-card image-search-card">
+            <button id="closeImageSearchBtn" class="install-close" type="button" aria-label="Fechar busca de imagens">Ã—</button>
+            <p class="install-eyebrow">Banco de imagens</p>
+            <h2 id="imageSearchTitle" class="install-title">Buscar imagem por termo</h2>
+            <p class="install-copy">A busca usa o Wikimedia Commons e salva o link direto da imagem no campo selecionado.</p>
+            <div class="image-search-toolbar">
+                <input id="imageSearchInput" type="search" class="json-editor image-search-input" placeholder="Ex.: leg press, supino, costas academia">
+                <button id="submitImageSearchBtn" class="save-btn" type="button">Buscar</button>
+            </div>
+            <p id="imageSearchStatus" class="image-search-status hidden"></p>
+            <div id="imageSearchResults" class="image-search-results"></div>
         </div>
     </div>
 

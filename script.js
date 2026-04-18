@@ -120,11 +120,21 @@ const workoutDayNumberInput = document.getElementById('workoutDayNumber');
 const workoutNameInput = document.getElementById('workoutName');
 const workoutDescInput = document.getElementById('workoutDesc');
 const workoutImageUrlInput = document.getElementById('workoutImageUrl');
+const searchWorkoutImageBtn = document.getElementById('searchWorkoutImageBtn');
 const installPrompt = document.getElementById('installPrompt');
 const installPromptText = document.getElementById('installPromptText');
 const installAppBtn = document.getElementById('installAppBtn');
 const installLaterBtn = document.getElementById('installLaterBtn');
 const dismissInstallPromptBtn = document.getElementById('dismissInstallPromptBtn');
+const imageSearchModal = document.getElementById('imageSearchModal');
+const closeImageSearchBtn = document.getElementById('closeImageSearchBtn');
+const imageSearchInput = document.getElementById('imageSearchInput');
+const submitImageSearchBtn = document.getElementById('submitImageSearchBtn');
+const imageSearchStatus = document.getElementById('imageSearchStatus');
+const imageSearchResults = document.getElementById('imageSearchResults');
+
+const IMAGE_SEARCH_ENDPOINT = 'https://commons.wikimedia.org/w/api.php';
+const IMAGE_SEARCH_DEFAULT_TERM = 'academia exercicio';
 
 function cloneDefaultWorkouts() {
     return normalizeWorkouts(JSON.parse(JSON.stringify(DEFAULT_WORKOUTS)));
@@ -361,22 +371,44 @@ function setConfigOpen(open) {
     toggleConfigBtn.textContent = open ? 'Fechar' : 'Abrir';
 }
 
+function getDayButtonTarget() {
+    return daySelector.querySelector('[data-day-target="today"]')
+        || daySelector.querySelector('[data-day-target="active"]')
+        || null;
+}
+
+function ensureDayButtonVisibility() {
+    const target = getDayButtonTarget();
+    if (!target) {
+        return;
+    }
+
+    window.requestAnimationFrame(() => {
+        target.scrollIntoView({
+            behavior: 'auto',
+            block: 'nearest',
+            inline: 'center'
+        });
+    });
+}
+
 function renderDayButtons() {
     const hasWorkoutToday = state.workouts.some((workout) => workout.dayNumber === state.currentDay);
     const buttons = sortWorkouts(state.workouts).map((workout) => {
         const isToday = hasWorkoutToday && workout.dayNumber === state.currentDay;
         const isActive = workout.id === state.activeWorkoutId;
         const classes = ['day-btn', 'px-4', 'py-2', 'rounded-full', 'whitespace-nowrap', 'text-sm', 'font-semibold'];
+        const targetType = isToday ? 'today' : (isActive ? 'active' : '');
         if (isActive) {
             classes.push('is-active');
         }
         if (isToday) {
             classes.push('is-today');
         }
-        return `<button type="button" onclick="changeWorkout('${workout.id}')" class="${classes.join(' ')}">${escapeHtml(workout.tabLabel)}</button>`;
+        return `<button type="button" onclick="changeWorkout('${workout.id}')" data-day-target="${targetType}" class="${classes.join(' ')}">${escapeHtml(workout.tabLabel)}</button>`;
     });
 
-    buttons.push(`<button type="button" onclick="changeWorkout('rest')" class="day-btn px-4 py-2 rounded-full whitespace-nowrap text-sm font-semibold ${state.activeWorkoutId === 'rest' ? 'is-active' : ''} ${hasWorkoutToday ? '' : 'is-today'}">OUTROS</button>`);
+    buttons.push(`<button type="button" onclick="changeWorkout('rest')" data-day-target="${hasWorkoutToday ? (state.activeWorkoutId === 'rest' ? 'active' : '') : 'today'}" class="day-btn px-4 py-2 rounded-full whitespace-nowrap text-sm font-semibold ${state.activeWorkoutId === 'rest' ? 'is-active' : ''} ${hasWorkoutToday ? '' : 'is-today'}">OUTROS</button>`);
     daySelector.innerHTML = buttons.join('');
 }
 
@@ -539,7 +571,10 @@ function renderExerciseEditor(exercises) {
             </label>
             <label class="field">
                 <span>Imagem do exercício</span>
-                <input type="url" data-exercise-id="${exercise.id}" data-field="imageUrl" value="${escapeHtml(exercise.imageUrl || '')}" placeholder="https://...">
+                <div class="image-field-row">
+                    <input type="url" data-exercise-id="${exercise.id}" data-field="imageUrl" value="${escapeHtml(exercise.imageUrl || '')}" placeholder="https://...">
+                    <button type="button" class="config-btn config-btn-secondary" data-action="search-exercise-image" data-exercise-id="${exercise.id}">Buscar imagem</button>
+                </div>
             </label>
             <label class="field">
                 <span>Trocas (uma por linha)</span>
@@ -696,16 +731,159 @@ function syncWeightToggle() {
     weightTrackingToggle.checked = state.settings.enableWeightTracking;
 }
 
+function getImageSearchStatusLabel(isLoading, message = '') {
+    if (isLoading) {
+        return 'Buscando imagens...';
+    }
+    return message;
+}
+
+function setImageSearchStatus(message = '', isLoading = false) {
+    imageSearchStatus.textContent = getImageSearchStatusLabel(isLoading, message);
+    imageSearchStatus.classList.toggle('hidden', !imageSearchStatus.textContent);
+}
+
+function renderImageSearchResults(results = []) {
+    if (!results.length) {
+        imageSearchResults.innerHTML = '<div class="image-search-empty">Nenhuma imagem encontrada. Tente outro termo.</div>';
+        return;
+    }
+
+    imageSearchResults.innerHTML = results.map((result) => `
+        <button type="button" class="image-search-item" onclick="applyImageSearchResult('${escapeForSingleQuotedJs(result.url)}')">
+            <img src="${escapeHtml(result.thumbnail || result.url)}" alt="${escapeHtml(result.title)}" class="image-search-thumb" loading="lazy">
+            <div class="image-search-body">
+                <div class="image-search-name">${escapeHtml(result.title)}</div>
+                <div class="image-search-link">Usar esse link</div>
+            </div>
+        </button>
+    `).join('');
+}
+
+function clearImageSearchResults() {
+    imageSearchResults.innerHTML = '';
+}
+
+function getImageSearchSeedTerm(input) {
+    if (input && input.value.trim()) {
+        return input.value.trim();
+    }
+
+    if (state.activeWorkoutId && state.activeWorkoutId !== 'rest') {
+        const workout = getWorkoutById(state.activeWorkoutId);
+        if (workout?.name) {
+            return workout.name;
+        }
+    }
+
+    return IMAGE_SEARCH_DEFAULT_TERM;
+}
+
+function openImageSearch(targetInput, seedTerm = '') {
+    if (!targetInput || !imageSearchModal) {
+        return;
+    }
+
+    imageSearchModal.classList.remove('hidden');
+    imageSearchInput.value = seedTerm || getImageSearchSeedTerm(targetInput);
+    imageSearchModal.dataset.targetSelector = targetInput.id
+        ? `#${targetInput.id}`
+        : `[data-exercise-id="${targetInput.dataset.exerciseId}"][data-field="${targetInput.dataset.field}"]`;
+    setImageSearchStatus('');
+    clearImageSearchResults();
+    imageSearchInput.focus();
+    imageSearchInput.select();
+}
+
+function getImageSearchTarget() {
+    const selector = imageSearchModal.dataset.targetSelector;
+    return selector ? document.querySelector(selector) : null;
+}
+
+function closeImageSearch() {
+    if (!imageSearchModal) {
+        return;
+    }
+
+    imageSearchModal.classList.add('hidden');
+    delete imageSearchModal.dataset.targetSelector;
+    setImageSearchStatus('');
+    clearImageSearchResults();
+}
+
+async function searchImages() {
+    const query = imageSearchInput.value.trim();
+    if (!query) {
+        setImageSearchStatus('Digite um termo para buscar.');
+        clearImageSearchResults();
+        imageSearchInput.focus();
+        return;
+    }
+
+    setImageSearchStatus('', true);
+    clearImageSearchResults();
+
+    try {
+        const url = new URL(IMAGE_SEARCH_ENDPOINT);
+        url.searchParams.set('action', 'query');
+        url.searchParams.set('generator', 'search');
+        url.searchParams.set('gsrsearch', query);
+        url.searchParams.set('gsrnamespace', '6');
+        url.searchParams.set('gsrlimit', '18');
+        url.searchParams.set('prop', 'imageinfo');
+        url.searchParams.set('iiprop', 'url');
+        url.searchParams.set('iiurlwidth', '480');
+        url.searchParams.set('format', 'json');
+        url.searchParams.set('origin', '*');
+
+        const response = await fetch(url.toString());
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+
+        const payload = await response.json();
+        const pages = Object.values(payload.query?.pages || {});
+        const results = pages.map((page) => {
+            const imageInfo = page.imageinfo?.[0];
+            return {
+                title: String(page.title || '').replace(/^File:/i, ''),
+                url: imageInfo?.url || '',
+                thumbnail: imageInfo?.thumburl || imageInfo?.url || ''
+            };
+        }).filter((item) => item.url);
+
+        setImageSearchStatus(results.length ? `${results.length} imagem(ns) encontrada(s).` : 'Nenhuma imagem encontrada.');
+        renderImageSearchResults(results);
+    } catch (error) {
+        console.error('Erro ao buscar imagens:', error);
+        setImageSearchStatus('Não foi possível buscar imagens agora.');
+        renderImageSearchResults([]);
+    }
+}
+
+function applyImageSearchResult(url) {
+    const targetInput = getImageSearchTarget();
+    if (!targetInput) {
+        return;
+    }
+
+    targetInput.value = url;
+    targetInput.dispatchEvent(new Event('input', { bubbles: true }));
+    closeImageSearch();
+}
+
 function renderAll() {
     renderDayButtons();
     renderExercises();
     renderWorkoutManager();
+    ensureDayButtonVisibility();
 }
 
 function changeWorkout(workoutId) {
     state.activeWorkoutId = workoutId;
     renderDayButtons();
     renderExercises();
+    ensureDayButtonVisibility();
 }
 
 function incrementSeries(exerciseId, total) {
@@ -918,6 +1096,22 @@ addExerciseBtn.addEventListener('click', () => {
     addExerciseField();
 });
 
+searchWorkoutImageBtn.addEventListener('click', () => {
+    openImageSearch(workoutImageUrlInput, workoutNameInput.value.trim() || workoutTabLabelInput.value.trim());
+});
+
+exerciseEditorList.addEventListener('click', (event) => {
+    const trigger = event.target.closest('[data-action="search-exercise-image"]');
+    if (!trigger) {
+        return;
+    }
+
+    const exerciseId = trigger.dataset.exerciseId;
+    const input = exerciseEditorList.querySelector(`[data-exercise-id="${exerciseId}"][data-field="imageUrl"]`);
+    const nameInput = exerciseEditorList.querySelector(`[data-exercise-id="${exerciseId}"][data-field="name"]`);
+    openImageSearch(input, nameInput?.value.trim() || '');
+});
+
 fillExampleJsonBtn.addEventListener('click', () => {
     updateJsonEditorWithExample();
 });
@@ -962,6 +1156,28 @@ dismissInstallPromptBtn.addEventListener('click', () => {
     hideInstallPrompt(true);
 });
 
+closeImageSearchBtn.addEventListener('click', closeImageSearch);
+submitImageSearchBtn.addEventListener('click', searchImages);
+
+imageSearchInput.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') {
+        event.preventDefault();
+        searchImages();
+    }
+});
+
+imageSearchModal.addEventListener('click', (event) => {
+    if (event.target === imageSearchModal) {
+        closeImageSearch();
+    }
+});
+
+document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && !imageSearchModal.classList.contains('hidden')) {
+        closeImageSearch();
+    }
+});
+
 window.addEventListener('beforeinstallprompt', (event) => {
     event.preventDefault();
     state.deferredInstallPrompt = event;
@@ -992,6 +1208,7 @@ window.updateExerciseWeight = updateExerciseWeight;
 window.editWorkout = editWorkout;
 window.deleteWorkout = deleteWorkout;
 window.removeExerciseField = removeExerciseField;
+window.applyImageSearchResult = applyImageSearchResult;
 
 window.onload = () => {
     syncWeightToggle();

@@ -206,6 +206,13 @@ h4 {
     gap: 0.4rem;
 }
 
+.image-field-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.65rem;
+    align-items: center;
+}
+
 .field span {
     font-size: 0.8rem;
     font-weight: 700;
@@ -601,6 +608,95 @@ button[onclick^="startTimer"][data-running="true"] {
     margin-top: 1rem;
 }
 
+.image-search-card {
+    width: min(100%, 720px);
+    max-height: min(82vh, 860px);
+    overflow: auto;
+}
+
+.image-search-toolbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.75rem;
+    margin-top: 1rem;
+    align-items: start;
+}
+
+.image-search-input {
+    min-height: auto;
+    margin: 0;
+}
+
+.image-search-status {
+    margin: 0.9rem 0 0;
+    color: var(--text-soft);
+    font-size: 0.92rem;
+}
+
+.image-search-results {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 0.9rem;
+    margin-top: 1rem;
+}
+
+.image-search-empty {
+    padding: 1rem;
+    border: 1px dashed var(--border);
+    border-radius: 1rem;
+    background: var(--card-bg-soft);
+    color: var(--text-muted);
+    text-align: center;
+}
+
+.image-search-item {
+    border: 1px solid var(--border);
+    background: var(--card-bg-soft);
+    border-radius: 1rem;
+    overflow: hidden;
+    text-align: left;
+    transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.image-search-item:hover {
+    transform: translateY(-1px);
+    border-color: rgba(37, 99, 235, 0.35);
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+}
+
+.image-search-thumb {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+    display: block;
+    background: var(--surface-muted);
+}
+
+.image-search-body {
+    padding: 0.8rem;
+}
+
+.image-search-name {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    color: var(--text-main);
+    font-size: 0.86rem;
+    font-weight: 700;
+    line-height: 1.35;
+    min-height: 2.4em;
+}
+
+.image-search-link {
+    margin-top: 0.55rem;
+    color: var(--accent);
+    font-size: 0.74rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
 .install-actions .save-btn,
 .install-actions .config-btn {
     flex: 1;
@@ -624,6 +720,11 @@ button[onclick^="startTimer"][data-running="true"] {
 
     .install-actions {
         flex-direction: column;
+    }
+
+    .image-field-row,
+    .image-search-toolbar {
+        grid-template-columns: 1fr;
     }
 }
 
