@@ -1163,7 +1163,7 @@ function updateExerciseProgressUI(exerciseId, total) {
     dots.forEach((dot, index) => {
         const isActive = index < progress;
         dot.classList.toggle('active', isActive);
-        dot.textContent = isActive ? 'âœ“' : String(index + 1);
+        dot.textContent = isActive ? '✓' : String(index + 1);
     });
 }
 
