@@ -1,6 +1,6 @@
 {
-  "name": "Treino ABCD - Lombar Sensível",
-  "short_name": "Treino ABCD",
+  "name": "Treino Personalizado Grátis",
+  "short_name": "Treino Personalizado",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#0f172a",

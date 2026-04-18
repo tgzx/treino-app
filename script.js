@@ -173,7 +173,7 @@ function normalizeExercise(exercise, workoutIndex, exerciseIndex) {
     const rawSwaps = Array.isArray(exercise.swaps) ? exercise.swaps : [];
     return {
         id: exercise.id || createId(`ex-${workoutIndex}-${exerciseIndex}`),
-        name: String(exercise.name || `Exercicio ${exerciseIndex + 1}`).trim(),
+        name: String(exercise.name || `Exercício ${exerciseIndex + 1}`).trim(),
         sets: Math.max(1, parseInt(exercise.sets, 10) || 3),
         reps: String(exercise.reps || '10').trim(),
         obs: String(exercise.obs || '').trim(),
@@ -500,7 +500,7 @@ function renderWorkoutManager() {
                     <div class="manager-badge">${escapeHtml(workout.tabLabel)}</div>
                     <h4 class="font-semibold mt-1">${escapeHtml(workout.name)}</h4>
                     <p class="text-sm opacity-80">${escapeHtml(workout.desc || 'Sem descricao')}</p>
-                    <p class="text-xs opacity-80 mt-1">${workout.exercises.length} exercicio(s)</p>
+                    <p class="text-xs opacity-80 mt-1">${workout.exercises.length} exercício(s)</p>
                 </div>
             </div>
             <div class="manager-actions">
@@ -515,12 +515,12 @@ function renderExerciseEditor(exercises) {
     exerciseEditorList.innerHTML = exercises.map((exercise, index) => `
         <div class="exercise-editor-card">
             <div class="exercise-editor-head">
-                <strong>Exercicio ${index + 1}</strong>
+                <strong>Exercício ${index + 1}</strong>
                 <button type="button" class="config-btn config-btn-danger" onclick="removeExerciseField('${exercise.id}')">Remover</button>
             </div>
             <label class="field">
                 <span>Nome</span>
-                <input type="text" data-exercise-id="${exercise.id}" data-field="name" value="${escapeHtml(exercise.name)}" placeholder="Nome do exercicio">
+                <input type="text" data-exercise-id="${exercise.id}" data-field="name" value="${escapeHtml(exercise.name)}" placeholder="Nome do exercício">
             </label>
             <div class="grid grid-cols-2 gap-3">
                 <label class="field">
@@ -537,7 +537,7 @@ function renderExerciseEditor(exercises) {
                 <input type="text" data-exercise-id="${exercise.id}" data-field="obs" value="${escapeHtml(exercise.obs || '')}" placeholder="Opcional">
             </label>
             <label class="field">
-                <span>Imagem do exercicio</span>
+                <span>Imagem do exercício</span>
                 <input type="url" data-exercise-id="${exercise.id}" data-field="imageUrl" value="${escapeHtml(exercise.imageUrl || '')}" placeholder="https://...">
             </label>
             <label class="field">
@@ -608,7 +608,7 @@ function createDraftWorkout() {
         desc: '',
         imageUrl: '',
         exercises: [
-            normalizeExercise({ name: 'Novo exercicio', sets: 3, reps: '10', swaps: [] }, 'draft', 0)
+            normalizeExercise({ name: 'Novo exercício', sets: 3, reps: '10', swaps: [] }, 'draft', 0)
         ]
     };
 }
@@ -831,7 +831,7 @@ function deleteWorkout(workoutId) {
 function removeExerciseField(exerciseId) {
     const cards = exerciseEditorList.querySelectorAll('.exercise-editor-card');
     if (cards.length === 1) {
-        alert('Deixe pelo menos um exercicio no treino.');
+        alert('Deixe pelo menos um exercício no treino.');
         return;
     }
 
@@ -843,7 +843,7 @@ function removeExerciseField(exerciseId) {
 
 function addExerciseField() {
     const exercises = getCurrentFormExercises();
-    exercises.push(normalizeExercise({ name: 'Novo exercicio', sets: 3, reps: '10', swaps: [] }, 'form', exercises.length));
+    exercises.push(normalizeExercise({ name: 'Novo exercício', sets: 3, reps: '10', swaps: [] }, 'form', exercises.length));
     renderExerciseEditor(exercises);
 }
 
@@ -897,7 +897,7 @@ addWorkoutBtn.addEventListener('click', () => {
 });
 
 resetDefaultsBtn.addEventListener('click', () => {
-    const confirmed = window.confirm('Restaurar os treinos padrao e sobrescrever os treinos salvos?');
+    const confirmed = window.confirm('Restaurar os treinos padrão e sobrescrever os treinos salvos?');
     if (!confirmed) {
         return;
     }
