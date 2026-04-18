@@ -520,6 +520,120 @@ h4 {
     background: linear-gradient(90deg, var(--accent), var(--accent-strong)) !important;
 }
 
+.timer-finish-flash {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    pointer-events: none;
+    opacity: 0;
+    z-index: 2;
+}
+
+.timer-finish-flash::before {
+    content: '';
+    position: absolute;
+    inset: 10%;
+    border-radius: 1.25rem;
+    background:
+        radial-gradient(circle at center, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.14) 44%, transparent 72%),
+        radial-gradient(circle at center, color-mix(in srgb, var(--accent) 24%, transparent) 0%, transparent 74%);
+    transform: scale(0.78);
+    opacity: 0;
+}
+
+.timer-finish-badge {
+    position: relative;
+    padding: 0.8rem 1rem;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--accent) 24%, white 28%);
+    background: color-mix(in srgb, var(--card-bg) 84%, white 16%);
+    color: var(--accent-strong);
+    font-size: 0.9rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.16);
+    transform: translateY(12px) scale(0.82);
+    opacity: 0;
+}
+
+.card.timer-finished {
+    animation: timer-finish-card 0.9s ease;
+}
+
+.card.timer-finished .timer-finish-flash {
+    animation: timer-finish-fade 1.2s ease-out;
+}
+
+.card.timer-finished .timer-finish-flash::before {
+    animation: timer-finish-bloom 1.2s ease-out;
+}
+
+.card.timer-finished .timer-finish-badge {
+    animation: timer-finish-badge 1.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes timer-finish-card {
+    0% {
+        transform: scale(1);
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+    }
+    18% {
+        transform: scale(1.012);
+        box-shadow: 0 18px 42px rgba(37, 99, 235, 0.18);
+    }
+    100% {
+        transform: scale(1);
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+    }
+}
+
+@keyframes timer-finish-fade {
+    0% {
+        opacity: 0;
+    }
+    18% {
+        opacity: 1;
+    }
+    100% {
+        opacity: 0;
+    }
+}
+
+@keyframes timer-finish-bloom {
+    0% {
+        transform: scale(0.72);
+        opacity: 0;
+    }
+    24% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    100% {
+        transform: scale(1.08);
+        opacity: 0;
+    }
+}
+
+@keyframes timer-finish-badge {
+    0% {
+        transform: translateY(12px) scale(0.82);
+        opacity: 0;
+    }
+    18% {
+        transform: translateY(0) scale(1.04);
+        opacity: 1;
+    }
+    62% {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+    }
+    100% {
+        transform: translateY(-6px) scale(0.96);
+        opacity: 0;
+    }
+}
+
 button[onclick^="showSwaps"] {
     background: var(--card-bg-soft) !important;
     color: var(--text-main) !important;

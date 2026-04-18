@@ -127,7 +127,6 @@ const workoutFormTitle = document.getElementById('workoutFormTitle');
 const cancelWorkoutEditBtn = document.getElementById('cancelWorkoutEditBtn');
 const addWorkoutBtn = document.getElementById('addWorkoutBtn');
 const resetDefaultsBtn = document.getElementById('resetDefaultsBtn');
-const testSoundBtn = document.getElementById('testSoundBtn');
 const addExerciseBtn = document.getElementById('addExerciseBtn');
 const exerciseEditorList = document.getElementById('exerciseEditorList');
 const fillExampleJsonBtn = document.getElementById('fillExampleJsonBtn');
@@ -542,23 +541,31 @@ async function playBeepSound() {
     }
 }
 
-async function testSoundPlayback() {
-    await unlockAudio();
-    const played = await playBeepSound();
-
-    if (played && navigator.vibrate) {
-        navigator.vibrate(120);
-    }
-
-    return played;
-}
-
 function triggerTimerCompletionFeedback() {
     playBeepSound();
 
     if (navigator.vibrate) {
         navigator.vibrate([160, 80, 220]);
     }
+}
+
+function playTimerCompletionAnimation(card) {
+    if (!card) {
+        return;
+    }
+
+    if (card._timerFinishAnimationTimeoutId) {
+        clearTimeout(card._timerFinishAnimationTimeoutId);
+    }
+
+    card.classList.remove('timer-finished');
+    void card.offsetWidth;
+    card.classList.add('timer-finished');
+
+    card._timerFinishAnimationTimeoutId = window.setTimeout(() => {
+        card.classList.remove('timer-finished');
+        card._timerFinishAnimationTimeoutId = null;
+    }, 1400);
 }
 
 function setConfigOpen(open) {
@@ -735,6 +742,10 @@ function renderExercises() {
             </div>
 
             ${weightControl}
+
+            <div class="timer-finish-flash" aria-hidden="true">
+                <div class="timer-finish-badge">TEMPO!</div>
+            </div>
 
             <div class="absolute bottom-0 left-0 h-1 bg-blue-500 timer-progress" style="width: ${timerPercent}%"></div>
 
@@ -1465,6 +1476,7 @@ function updateTimerButtonUI(button, progressBar, timeLeft, millisecondsLeft = t
 
 function finishTimer(exerciseId, button, progressBar, shouldPlaySound = true) {
     const timerState = state.timers[exerciseId];
+    const card = button?.closest('.card');
     if (timerState?.intervalId) {
         clearInterval(timerState.intervalId);
     }
@@ -1478,6 +1490,8 @@ function finishTimer(exerciseId, button, progressBar, shouldPlaySound = true) {
     if (shouldPlaySound) {
         triggerTimerCompletionFeedback();
     }
+
+    playTimerCompletionAnimation(card);
 
     window.setTimeout(() => {
         updateTimerButtonUI(button, progressBar, 0, 0);
@@ -1502,6 +1516,19 @@ function syncTimerUI(exerciseId, shouldPlaySound = true) {
     }
 
     updateTimerButtonUI(button, progressBar, timeLeft, millisecondsLeft);
+}
+
+function restoreExpiredTimersToOneSecond() {
+    const now = Date.now();
+
+    Object.keys(state.timers).forEach((exerciseId) => {
+        const timerState = state.timers[exerciseId];
+        if (!timerState || timerState.endAt > now) {
+            return;
+        }
+
+        timerState.endAt = now + 1000;
+    });
 }
 
 async function startTimer(button) {
@@ -1667,10 +1694,6 @@ restSecondsInput.addEventListener('blur', (event) => {
 addWorkoutBtn.addEventListener('click', () => {
     openWorkoutForm(createDraftWorkout());
     setConfigOpen(true);
-});
-
-testSoundBtn.addEventListener('click', async () => {
-    await testSoundPlayback();
 });
 
 resetDefaultsBtn.addEventListener('click', () => {
@@ -1868,6 +1891,7 @@ document.addEventListener('visibilitychange', () => {
     }
 
     syncWakeLock();
+    restoreExpiredTimersToOneSecond();
 
     Object.keys(state.timers).forEach((exerciseId) => {
         syncTimerUI(exerciseId, true);
