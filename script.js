@@ -8,7 +8,8 @@ const STORAGE_KEYS = {
 
 const DEFAULT_SETTINGS = {
     enableWeightTracking: false,
-    enableImageExpansion: true
+    enableImageExpansion: true,
+    enableWakeLock: false
 };
 
 const DEFAULT_WORKOUTS = [
@@ -95,7 +96,8 @@ const state = {
         pageSize: 10,
         hasMore: false
     },
-    imageViewerTrigger: null
+    imageViewerTrigger: null,
+    wakeLockSentinel: null
 };
 
 const themeToggle = document.getElementById('themeToggle');
@@ -115,6 +117,7 @@ const toggleConfigBtn = document.getElementById('toggleConfigBtn');
 const configPanel = document.getElementById('configPanel');
 const weightTrackingToggle = document.getElementById('weightTrackingToggle');
 const imageExpansionToggle = document.getElementById('imageExpansionToggle');
+const wakeLockToggle = document.getElementById('wakeLockToggle');
 const workoutManagerList = document.getElementById('workoutManagerList');
 const workoutForm = document.getElementById('workoutForm');
 const workoutFormTitle = document.getElementById('workoutFormTitle');
@@ -184,12 +187,54 @@ function loadSettings() {
     const settings = loadJson(STORAGE_KEYS.settings, DEFAULT_SETTINGS);
     return {
         enableWeightTracking: Boolean(settings.enableWeightTracking),
-        enableImageExpansion: settings.enableImageExpansion !== false
+        enableImageExpansion: settings.enableImageExpansion !== false,
+        enableWakeLock: Boolean(settings.enableWakeLock)
     };
 }
 
 function saveSettings() {
     saveJson(STORAGE_KEYS.settings, state.settings);
+}
+
+async function releaseWakeLock() {
+    if (!state.wakeLockSentinel) {
+        return;
+    }
+
+    try {
+        await state.wakeLockSentinel.release();
+    } catch (error) {
+        console.warn('Nao foi possivel liberar o wake lock.', error);
+    } finally {
+        state.wakeLockSentinel = null;
+    }
+}
+
+async function syncWakeLock() {
+    if (!state.settings.enableWakeLock) {
+        await releaseWakeLock();
+        return;
+    }
+
+    if (!('wakeLock' in navigator) || document.visibilityState !== 'visible') {
+        return;
+    }
+
+    if (state.wakeLockSentinel && !state.wakeLockSentinel.released) {
+        return;
+    }
+
+    try {
+        const sentinel = await navigator.wakeLock.request('screen');
+        sentinel.addEventListener('release', () => {
+            if (state.wakeLockSentinel === sentinel) {
+                state.wakeLockSentinel = null;
+            }
+        });
+        state.wakeLockSentinel = sentinel;
+    } catch (error) {
+        console.warn('Nao foi possivel ativar o wake lock.', error);
+    }
 }
 
 function loadWeights() {
@@ -721,7 +766,11 @@ function createDraftWorkout() {
 
 function updateJsonEditorWithExample() {
     const example = {
-        settings: { enableWeightTracking: false },
+        settings: {
+            enableWeightTracking: false,
+            enableImageExpansion: true,
+            enableWakeLock: false
+        },
         workouts: [
             {
                 dayNumber: 1,
@@ -785,6 +834,8 @@ function importJsonConfig() {
         state.workouts = workouts;
         if (settingsInput) {
             state.settings.enableWeightTracking = Boolean(settingsInput.enableWeightTracking);
+            state.settings.enableImageExpansion = settingsInput.enableImageExpansion !== false;
+            state.settings.enableWakeLock = Boolean(settingsInput.enableWakeLock);
             saveSettings();
         }
         saveWorkouts();
@@ -792,6 +843,7 @@ function importJsonConfig() {
         state.activeWorkoutId = getInitialWorkoutId();
         closeWorkoutForm();
         renderAll();
+        syncWakeLock();
     } catch (error) {
         alert('O JSON esta invalido. Revise e tente novamente.');
     }
@@ -800,6 +852,7 @@ function importJsonConfig() {
 function syncWeightToggle() {
     weightTrackingToggle.checked = state.settings.enableWeightTracking;
     imageExpansionToggle.checked = state.settings.enableImageExpansion;
+    wakeLockToggle.checked = state.settings.enableWakeLock;
 }
 
 function setImageSearchProvider(provider) {
@@ -1440,6 +1493,12 @@ imageExpansionToggle.addEventListener('change', (event) => {
     renderWorkoutHero(getWorkoutById(state.activeWorkoutId));
 });
 
+wakeLockToggle.addEventListener('change', (event) => {
+    state.settings.enableWakeLock = event.target.checked;
+    saveSettings();
+    syncWakeLock();
+});
+
 addWorkoutBtn.addEventListener('click', () => {
     openWorkoutForm(createDraftWorkout());
     setConfigOpen(true);
@@ -1635,8 +1694,11 @@ document.addEventListener('keydown', (event) => {
 
 document.addEventListener('visibilitychange', () => {
     if (document.hidden) {
+        releaseWakeLock();
         return;
     }
+
+    syncWakeLock();
 
     Object.keys(state.timers).forEach((exerciseId) => {
         syncTimerUI(exerciseId, true);
@@ -1681,6 +1743,7 @@ window.onload = () => {
     updateJsonEditorWithExample();
     state.activeWorkoutId = getInitialWorkoutId();
     renderAll();
+    syncWakeLock();
     registerServiceWorker();
 
     if (isIosDevice() && !isStandaloneMode()) {
