@@ -492,44 +492,13 @@ async function resumeAudioContext() {
     }
 }
 
-function primeAudioContext(audioContext) {
-    if (!audioContext || audioContext.state !== 'running') {
-        return false;
-    }
-
-    try {
-        const gainNode = audioContext.createGain();
-        const oscillator = audioContext.createOscillator();
-        const startAt = audioContext.currentTime + 0.001;
-        const endAt = startAt + 0.03;
-
-        gainNode.gain.setValueAtTime(0.0001, startAt);
-        oscillator.type = 'sine';
-        oscillator.frequency.setValueAtTime(440, startAt);
-
-        oscillator.connect(gainNode);
-        gainNode.connect(audioContext.destination);
-
-        oscillator.start(startAt);
-        oscillator.stop(endAt);
-
-        return true;
-    } catch (error) {
-        return false;
-    }
-}
-
 async function unlockAudio() {
     const [htmlUnlocked, contextUnlocked] = await Promise.allSettled([
         primeHtmlAudioElement(),
         resumeAudioContext()
     ]);
 
-    const audioContext = getAudioContext();
-    const contextPrimed = primeAudioContext(audioContext);
-
     state.audioUnlocked = state.audioUnlocked
-        || contextPrimed
         || [htmlUnlocked, contextUnlocked].some((result) => result.status === 'fulfilled' && result.value);
 }
 
@@ -597,15 +566,15 @@ async function playSynthBeepSound() {
 }
 
 async function playBeepSound() {
-    const synthPlayed = await playSynthBeepSound();
-    if (synthPlayed) {
+    const htmlAudioPlayed = await playHtmlBeepSound();
+    if (htmlAudioPlayed) {
         state.pendingBeepSound = false;
         state.audioUnlocked = true;
         return true;
     }
 
-    const htmlAudioPlayed = await playHtmlBeepSound();
-    if (htmlAudioPlayed) {
+    const synthPlayed = await playSynthBeepSound();
+    if (synthPlayed) {
         state.pendingBeepSound = false;
         state.audioUnlocked = true;
         return true;
