@@ -79,6 +79,7 @@ const state = {
     activeWorkoutId: null,
     progress: {},
     swaps: {},
+    timers: {},
     audioUnlocked: false,
     settings: loadSettings(),
     workouts: loadWorkouts(),
@@ -521,6 +522,11 @@ function renderExercises() {
         const exerciseProgress = state.progress[exercise.id] || 0;
         const selectedSwap = state.swaps[exercise.id] || { name: exercise.name, imageUrl: exercise.imageUrl || '' };
         const originalPayload = encodeSwapPayload({ name: exercise.name, imageUrl: exercise.imageUrl || '' });
+        const timerState = state.timers[exercise.id] || null;
+        const now = Date.now();
+        const secondsLeft = timerState ? Math.max(0, Math.ceil((timerState.endAt - now) / 1000)) : 60;
+        const isTimerRunning = Boolean(timerState && timerState.endAt > now);
+        const timerPercent = isTimerRunning ? ((60 - secondsLeft) / 60) * 100 : 0;
         const weightControl = state.settings.enableWeightTracking ? `
             <div class="weight-control mt-4">
                 <label class="weight-label">
@@ -555,15 +561,13 @@ function renderExercises() {
                     `).join('')}
                 </div>
                 <div class="flex-1 text-right">
-                    <button onclick="startTimer(this)" class="bg-blue-50 text-blue-600 dark:bg-slate-800 dark:text-blue-400 text-xs font-bold px-3 py-2 rounded-lg transition-all active:scale-95">
-                        ⏱️ DESCANSO
-                    </button>
+                    <button onclick="startTimer(this)" data-exercise-id="${exercise.id}" data-running="${isTimerRunning ? 'true' : 'false'}" class="bg-blue-50 text-blue-600 dark:bg-slate-800 dark:text-blue-400 text-xs font-bold px-3 py-2 rounded-lg transition-all active:scale-95 ${isTimerRunning ? 'opacity-50' : ''}">${isTimerRunning ? `${secondsLeft}s` : 'DESCANSO'}</button>
                 </div>
             </div>
 
             ${weightControl}
 
-            <div class="absolute bottom-0 left-0 h-1 bg-blue-500 timer-progress" style="width: 0%"></div>
+            <div class="absolute bottom-0 left-0 h-1 bg-blue-500 timer-progress" style="width: ${timerPercent}%"></div>
 
             <div id="swaps-${exercise.id}" class="hidden absolute inset-0 bg-white dark:bg-slate-900 z-10 p-4 overflow-y-auto">
                 <div class="flex justify-between items-center mb-3">
@@ -1251,6 +1255,84 @@ function updateExerciseWeight(exerciseId, value) {
     saveWeights();
 }
 
+function updateTimerButtonUI(button, progressBar, timeLeft) {
+    if (!button || !progressBar) {
+        return;
+    }
+
+    const safeTimeLeft = Math.max(0, timeLeft);
+    const percent = safeTimeLeft > 0 ? ((60 - safeTimeLeft) / 60) * 100 : 0;
+
+    progressBar.style.width = `${percent}%`;
+    button.textContent = safeTimeLeft > 0 ? `${safeTimeLeft}s` : 'DESCANSO';
+    button.dataset.running = safeTimeLeft > 0 ? 'true' : 'false';
+    button.classList.toggle('opacity-50', safeTimeLeft > 0);
+}
+
+function finishTimer(exerciseId, button, progressBar, shouldPlaySound = true) {
+    const timerState = state.timers[exerciseId];
+    if (timerState?.intervalId) {
+        clearInterval(timerState.intervalId);
+    }
+
+    delete state.timers[exerciseId];
+    updateTimerButtonUI(button, progressBar, 0);
+
+    if (shouldPlaySound) {
+        beepSound.currentTime = 0;
+        beepSound.play().catch(() => console.log('Erro ao tocar som: interacao necessaria'));
+    }
+}
+
+function syncTimerUI(exerciseId, shouldPlaySound = true) {
+    const button = exercisesList.querySelector(`button[data-exercise-id="${exerciseId}"]`);
+    const card = button?.closest('.card');
+    const progressBar = card?.querySelector('.timer-progress');
+    const timerState = state.timers[exerciseId];
+
+    if (!button || !progressBar || !timerState) {
+        return;
+    }
+
+    const timeLeft = Math.ceil((timerState.endAt - Date.now()) / 1000);
+    if (timeLeft <= 0) {
+        finishTimer(exerciseId, button, progressBar, shouldPlaySound);
+        return;
+    }
+
+    updateTimerButtonUI(button, progressBar, timeLeft);
+}
+
+function startTimer(button) {
+    const card = button.closest('.card');
+    const progressBar = card?.querySelector('.timer-progress');
+    const exerciseId = button.dataset.exerciseId;
+
+    unlockAudio();
+
+    if (!exerciseId || !progressBar || button.dataset.running === 'true') {
+        return;
+    }
+
+    const existingTimer = state.timers[exerciseId];
+    if (existingTimer?.intervalId) {
+        clearInterval(existingTimer.intervalId);
+    }
+
+    const endAt = Date.now() + 60000;
+    state.timers[exerciseId] = {
+        endAt,
+        intervalId: null
+    };
+
+    updateTimerButtonUI(button, progressBar, 60);
+    syncTimerUI(exerciseId, false);
+
+    state.timers[exerciseId].intervalId = window.setInterval(() => {
+        syncTimerUI(exerciseId, true);
+    }, 1000);
+}
+
 function editWorkout(workoutId) {
     const workout = getWorkoutById(workoutId);
     if (!workout) {
@@ -1551,6 +1633,16 @@ document.addEventListener('keydown', (event) => {
     }
 });
 
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+        return;
+    }
+
+    Object.keys(state.timers).forEach((exerciseId) => {
+        syncTimerUI(exerciseId, true);
+    });
+});
+
 window.addEventListener('beforeinstallprompt', (event) => {
     event.preventDefault();
     state.deferredInstallPrompt = event;
@@ -1599,3 +1691,4 @@ window.onload = () => {
         });
     }
 };
+
