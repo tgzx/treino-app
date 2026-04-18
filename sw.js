@@ -1,4 +1,4 @@
-const CACHE_NAME = 'treino-app-cache-v2';
+const CACHE_NAME = 'treino-app-cache-v3';
 const APP_ASSETS = [
     './',
     './index.html',
@@ -7,6 +7,17 @@ const APP_ASSETS = [
     './manifest.webmanifest',
     './appicon.png'
 ];
+
+function isAppShellRequest(requestUrl) {
+    return requestUrl.origin === self.location.origin
+        && (
+            requestUrl.pathname.endsWith('/')
+            || requestUrl.pathname.endsWith('/index.html')
+            || requestUrl.pathname.endsWith('/styles.css')
+            || requestUrl.pathname.endsWith('/script.js')
+            || requestUrl.pathname.endsWith('/manifest.webmanifest')
+        );
+}
 
 self.addEventListener('install', (event) => {
     event.waitUntil(
@@ -31,9 +42,37 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
+    const requestUrl = new URL(event.request.url);
+
+    if (isAppShellRequest(requestUrl)) {
+        event.respondWith(
+            fetch(event.request)
+                .then((response) => {
+                    if (response && response.status === 200) {
+                        const clonedResponse = response.clone();
+                        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clonedResponse));
+                    }
+
+                    return response;
+                })
+                .catch(() => caches.match(event.request))
+        );
+        return;
+    }
+
     event.respondWith(
         caches.match(event.request).then((cachedResponse) => {
             if (cachedResponse) {
+                fetch(event.request)
+                    .then((response) => {
+                        if (!response || response.status !== 200 || response.type !== 'basic') {
+                            return;
+                        }
+
+                        const clonedResponse = response.clone();
+                        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clonedResponse));
+                    })
+                    .catch(() => {});
                 return cachedResponse;
             }
 

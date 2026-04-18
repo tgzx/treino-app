@@ -351,7 +351,18 @@ async function registerServiceWorker() {
     }
 
     try {
-        await navigator.serviceWorker.register('./sw.js');
+        const registration = await navigator.serviceWorker.register('./sw.js');
+        registration.update().catch(() => {});
+
+        let hasRefreshedForNewWorker = false;
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+            if (hasRefreshedForNewWorker) {
+                return;
+            }
+
+            hasRefreshedForNewWorker = true;
+            window.location.reload();
+        });
     } catch (error) {
         console.error('Erro ao registrar service worker:', error);
     }
