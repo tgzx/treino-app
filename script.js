@@ -100,7 +100,12 @@ const state = {
         hasMore: false
     },
     imageViewerTrigger: null,
-    wakeLockSentinel: null
+    wakeLockSentinel: null,
+    // wizard editor state
+    currentWizardStep: 0,
+    expandedExercises: new Set(),
+    recentDuplicatedExerciseId: null,
+    tempSwapTags: {} // exerciseId -> array of {name, imageUrl}
 };
 
 const themeToggle = document.getElementById('themeToggle');
@@ -156,6 +161,15 @@ const imageViewerModal = document.getElementById('imageViewerModal');
 const closeImageViewerBtn = document.getElementById('closeImageViewerBtn');
 const imageViewerImg = document.getElementById('imageViewerImg');
 const imageViewerFallback = document.getElementById('imageViewerFallback');
+// wizard elements
+const wizardTabs = document.querySelectorAll('.wizard-tab');
+const wizardStep0 = document.getElementById('wizardStep0');
+const wizardStep1 = document.getElementById('wizardStep1');
+const nextToExercisesBtn = document.getElementById('nextToExercisesBtn');
+const prevToBasicBtn = document.getElementById('prevToBasicBtn');
+const addExerciseWizardBtn = document.getElementById('addExerciseWizardBtn');
+const wizardExercisesProgress = document.getElementById('wizardExercisesProgress');
+const floatingSaveWorkoutBtn = document.getElementById('floatingSaveWorkoutBtn');
 
 const WIKIMEDIA_IMAGE_SEARCH_ENDPOINT = 'https://commons.wikimedia.org/w/api.php';
 const OPENVERSE_IMAGE_SEARCH_ENDPOINT = 'https://api.openverse.org/v1/images/';
@@ -794,48 +808,402 @@ function renderWorkoutManager() {
     `).join('');
 }
 
-function renderExerciseEditor(exercises) {
-    exerciseEditorList.innerHTML = exercises.map((exercise, index) => `
-        <div class="exercise-editor-card">
-            <div class="exercise-editor-head">
-                <strong>Exercício ${index + 1}</strong>
-                <button type="button" class="config-btn config-btn-danger" onclick="removeExerciseField('${exercise.id}')">Remover</button>
-            </div>
-            <label class="field">
-                <span>Nome</span>
-                <input type="text" data-exercise-id="${exercise.id}" data-field="name" value="${escapeHtml(exercise.name)}" placeholder="Nome do exercício">
-            </label>
-            <div class="grid grid-cols-2 gap-3">
-                <label class="field">
-                    <span>Series</span>
-                    <input type="number" min="1" data-exercise-id="${exercise.id}" data-field="sets" value="${exercise.sets}">
-                </label>
-                <label class="field">
-                    <span>Repeticoes</span>
-                    <input type="text" data-exercise-id="${exercise.id}" data-field="reps" value="${escapeHtml(exercise.reps)}" placeholder="10">
-                </label>
-            </div>
-            <label class="field">
-                <span>Observacao</span>
-                <input type="text" data-exercise-id="${exercise.id}" data-field="obs" value="${escapeHtml(exercise.obs || '')}" placeholder="Opcional">
-            </label>
-            <label class="field">
-                <span>Imagem do exercício</span>
-                <div class="image-field-row">
-                    <input type="url" data-exercise-id="${exercise.id}" data-field="imageUrl" value="${escapeHtml(exercise.imageUrl || '')}" placeholder="https://...">
-                    <button type="button" class="config-btn config-btn-secondary" data-action="search-exercise-image" data-exercise-id="${exercise.id}">Buscar imagem</button>
+// ---------- Wizard Editor Functions ----------
+
+function syncFloatingSaveVisibility() {
+    if (!floatingSaveWorkoutBtn || !workoutForm) {
+        return;
+    }
+
+    const isEditing = !workoutForm.classList.contains('hidden');
+    floatingSaveWorkoutBtn.classList.toggle('hidden', !isEditing);
+    floatingSaveWorkoutBtn.disabled = false;
+    floatingSaveWorkoutBtn.textContent = 'Salvar treino';
+}
+
+function hideFloatingSaveButton() {
+    if (!floatingSaveWorkoutBtn) {
+        return;
+    }
+
+    floatingSaveWorkoutBtn.classList.add('hidden');
+    floatingSaveWorkoutBtn.disabled = false;
+    floatingSaveWorkoutBtn.textContent = 'Salvar treino';
+}
+
+
+function scrollEditorCardIntoComfortView(card) {
+    if (!card) {
+        return;
+    }
+
+    window.requestAnimationFrame(() => {
+        const headerHeight = document.querySelector('header')?.getBoundingClientRect().height || 0;
+        const wizardTabsHeight = wizardTabs.length ? (wizardTabs[0].parentElement?.getBoundingClientRect().height || 0) : 0;
+        const safeTop = headerHeight + wizardTabsHeight + 24;
+        const rect = card.getBoundingClientRect();
+        const targetTop = Math.max(0, window.scrollY + rect.top - safeTop);
+
+        window.scrollTo({
+            top: targetTop,
+            behavior: 'smooth'
+        });
+    });
+}
+
+function setWizardStep(step) {
+    state.currentWizardStep = step;
+    wizardTabs.forEach((tab, idx) => {
+        tab.classList.toggle('active', idx === step);
+    });
+
+    if (step === 0) {
+        wizardStep0.classList.remove('hidden');
+        wizardStep1.classList.add('hidden');
+    } else {
+        wizardStep0.classList.add('hidden');
+        wizardStep1.classList.remove('hidden');
+        updateExercisesProgress();
+    }
+
+    syncFloatingSaveVisibility();
+}
+
+function updateExercisesProgress() {
+    if (!wizardExercisesProgress) return;
+    const exerciseCards = exerciseEditorList.querySelectorAll('.exercise-editor-card');
+    const total = exerciseCards.length;
+    let reviewed = 0;
+    exerciseCards.forEach(card => {
+        const nameInput = card.querySelector('[data-field="name"]');
+        if (nameInput && nameInput.value.trim() !== '') reviewed++;
+    });
+    wizardExercisesProgress.textContent = `${reviewed} / ${total}`;
+}
+
+function getSwapsForExercise(exerciseId) {
+    if (!state.tempSwapTags[exerciseId]) state.tempSwapTags[exerciseId] = [];
+    return state.tempSwapTags[exerciseId];
+}
+
+function setSwapsForExercise(exerciseId, swaps) {
+    state.tempSwapTags[exerciseId] = [...swaps];
+}
+
+function renderSwapTags(exerciseId, swaps) {
+    const tagList = swaps.length ? `
+        <div class="swap-tags-list">
+            ${swaps.map((swap, idx) => `
+                <div class="swap-tag" data-swap-index="${idx}" data-image-url="${escapeHtml(swap.imageUrl || '')}">
+                    <span class="swap-tag-name" title="${escapeHtml(swap.name)}">${escapeHtml(swap.name)}</span>
+                    ${swap.imageUrl ? '<span class="swap-tag-image-indicator">📷</span>' : ''}
+                    <button type="button" class="swap-tag-remove" data-exercise-id="${exerciseId}" data-swap-index="${idx}" title="Remover troca">×</button>
                 </div>
-            </label>
-            <label class="field">
-                <span>Trocas (uma por linha)</span>
-                <textarea data-exercise-id="${exercise.id}" data-field="swaps">${escapeHtml((exercise.swaps || []).map((swap) => swap.name).join('\n'))}</textarea>
-            </label>
-            <label class="field">
-                <span>Imagens das trocas (uma por linha, mesma ordem)</span>
-                <textarea data-exercise-id="${exercise.id}" data-field="swapImages">${escapeHtml((exercise.swaps || []).map((swap) => swap.imageUrl || '').join('\n'))}</textarea>
-            </label>
+            `).join('')}
         </div>
-    `).join('');
+    ` : '<div class="swap-tags-empty">Nenhuma troca adicionada.</div>';
+
+    return `
+        ${tagList}
+        <div class="swap-add">
+            <input type="text" class="swap-add-name" placeholder="Nome da troca" data-exercise-id="${exerciseId}">
+            <input type="url" class="swap-add-image" placeholder="URL da imagem (opcional)" data-exercise-id="${exerciseId}">
+            <button type="button" class="config-btn config-btn-secondary swap-add-btn" data-exercise-id="${exerciseId}">Adicionar troca</button>
+        </div>
+    `;
+}
+
+
+function attachSwapTagEvents() {
+    document.querySelectorAll('.swap-tag-remove').forEach(btn => {
+        btn.removeEventListener('click', handleRemoveSwap);
+        btn.addEventListener('click', handleRemoveSwap);
+    });
+    document.querySelectorAll('.swap-add-btn').forEach(btn => {
+        btn.removeEventListener('click', handleAddSwap);
+        btn.addEventListener('click', handleAddSwap);
+    });
+}
+
+function handleRemoveSwap(event) {
+    const btn = event.currentTarget;
+    const exerciseId = btn.dataset.exerciseId;
+    const swapIndex = parseInt(btn.dataset.swapIndex, 10);
+    const swaps = getSwapsForExercise(exerciseId);
+    swaps.splice(swapIndex, 1);
+    setSwapsForExercise(exerciseId, swaps);
+    const container = exerciseEditorList.querySelector(`.exercise-editor-card[data-exercise-id="${exerciseId}"] .swap-tags-container`);
+    if (container) container.innerHTML = renderSwapTags(exerciseId, swaps);
+    attachSwapTagEvents();
+    updateExercisesProgress();
+}
+
+function handleAddSwap(event) {
+    const btn = event.currentTarget;
+    const exerciseId = btn.dataset.exerciseId;
+    const card = exerciseEditorList.querySelector(`.exercise-editor-card[data-exercise-id="${exerciseId}"]`);
+    const nameInput = card.querySelector('.swap-add-name');
+    const imageInput = card.querySelector('.swap-add-image');
+    const newName = nameInput.value.trim();
+    if (!newName) return;
+    const swaps = getSwapsForExercise(exerciseId);
+    swaps.push({ name: newName, imageUrl: imageInput.value.trim() });
+    setSwapsForExercise(exerciseId, swaps);
+    const container = card.querySelector('.swap-tags-container');
+    container.innerHTML = renderSwapTags(exerciseId, swaps);
+    attachSwapTagEvents();
+    nameInput.value = '';
+    imageInput.value = '';
+    updateExercisesProgress();
+}
+
+function attachMoveButtons() {
+    document.querySelectorAll('.move-up-btn, .move-down-btn').forEach(btn => {
+        btn.removeEventListener('click', handleMove);
+        btn.addEventListener('click', handleMove);
+    });
+}
+
+function handleMove(event) {
+    const btn = event.currentTarget;
+    const exerciseId = btn.dataset.exerciseId;
+    const direction = btn.dataset.move;
+    const exercises = getCurrentFormExercises();
+    const currentIndex = exercises.findIndex(exercise => exercise.id === exerciseId);
+
+    if (currentIndex < 0) {
+        return;
+    }
+
+    const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    if (targetIndex < 0 || targetIndex >= exercises.length) {
+        return;
+    }
+
+    const [movedExercise] = exercises.splice(currentIndex, 1);
+    exercises.splice(targetIndex, 0, movedExercise);
+
+    exercises.forEach(exercise => {
+        setSwapsForExercise(exercise.id, exercise.swaps || []);
+    });
+
+    renderExerciseEditor(exercises);
+    updateExercisesProgress();
+
+    const movedCard = exerciseEditorList.querySelector(`.exercise-editor-card[data-exercise-id="${exerciseId}"]`);
+    scrollEditorCardIntoComfortView(movedCard);
+}
+
+function attachDuplicateButtons() {
+    document.querySelectorAll('.duplicate-btn').forEach(btn => {
+        btn.removeEventListener('click', handleDuplicate);
+        btn.addEventListener('click', handleDuplicate);
+    });
+}
+
+function attachRemoveExerciseButtons() {
+    document.querySelectorAll('.remove-exercise-btn').forEach(btn => {
+        btn.removeEventListener('click', handleRemoveExercise);
+        btn.addEventListener('click', handleRemoveExercise);
+    });
+}
+
+function handleRemoveExercise(event) {
+    const btn = event.currentTarget;
+    const exerciseId = btn.dataset.exerciseId;
+    const exercises = getCurrentFormExercises();
+    const currentIndex = exercises.findIndex(exercise => exercise.id === exerciseId);
+
+    if (currentIndex < 0) {
+        return;
+    }
+
+    if (exercises.length <= 1) {
+        alert('O treino precisa ter pelo menos um exercício.');
+        return;
+    }
+
+    const exerciseName = exercises[currentIndex].name || 'este exercício';
+    const confirmed = window.confirm(`Excluir "${exerciseName}" deste treino?`);
+    if (!confirmed) {
+        return;
+    }
+
+    exercises.splice(currentIndex, 1);
+    delete state.tempSwapTags[exerciseId];
+    state.expandedExercises.delete(exerciseId);
+
+    exercises.forEach(exercise => {
+        setSwapsForExercise(exercise.id, exercise.swaps || []);
+    });
+
+    renderExerciseEditor(exercises);
+    updateExercisesProgress();
+}
+
+function handleDuplicate(event) {
+    const btn = event.currentTarget;
+    const exerciseId = btn.dataset.exerciseId;
+    const currentExercises = getCurrentFormExercises();
+    const currentIndex = currentExercises.findIndex(exercise => exercise.id === exerciseId);
+    const original = currentExercises[currentIndex];
+
+    if (!original) {
+        return;
+    }
+
+    const cloned = JSON.parse(JSON.stringify(original));
+    cloned.id = createId('ex');
+    cloned.name = `${cloned.name} (cópia)`;
+
+    currentExercises.splice(currentIndex + 1, 0, cloned);
+    currentExercises.forEach(exercise => {
+        setSwapsForExercise(exercise.id, exercise.swaps || []);
+    });
+
+    state.expandedExercises.add(cloned.id);
+    state.recentDuplicatedExerciseId = cloned.id;
+    renderExerciseEditor(currentExercises);
+    updateExercisesProgress();
+
+    const clonedCard = exerciseEditorList.querySelector(`.exercise-editor-card[data-exercise-id="${cloned.id}"]`);
+    scrollEditorCardIntoComfortView(clonedCard);
+
+    window.setTimeout(() => {
+        const activeCard = exerciseEditorList.querySelector(`.exercise-editor-card[data-exercise-id="${cloned.id}"]`);
+        if (activeCard) {
+            activeCard.classList.remove('duplicate-born');
+        }
+        if (state.recentDuplicatedExerciseId === cloned.id) {
+            state.recentDuplicatedExerciseId = null;
+        }
+    }, 720);
+}
+
+function attachExpandCollapseButtons() {
+    document.querySelectorAll('.expand-collapse-btn').forEach(btn => {
+        btn.removeEventListener('click', handleExpandCollapse);
+        btn.addEventListener('click', handleExpandCollapse);
+    });
+}
+
+function handleExpandCollapse(event) {
+    const btn = event.currentTarget;
+    const exerciseId = btn.dataset.exerciseId;
+    const card = exerciseEditorList.querySelector(`.exercise-editor-card[data-exercise-id="${exerciseId}"]`);
+    const body = card.querySelector('.exercise-collapsible-body');
+    if (state.expandedExercises.has(exerciseId)) {
+        state.expandedExercises.delete(exerciseId);
+        body.classList.add('hidden');
+        btn.textContent = '+';
+    } else {
+        state.expandedExercises.add(exerciseId);
+        body.classList.remove('hidden');
+        btn.textContent = '−';
+    }
+}
+
+function attachSearchImageButtons() {
+    document.querySelectorAll('.search-exercise-image-btn').forEach(btn => {
+        btn.removeEventListener('click', handleSearchExerciseImage);
+        btn.addEventListener('click', handleSearchExerciseImage);
+    });
+}
+
+function handleSearchExerciseImage(event) {
+    const btn = event.currentTarget;
+    const exerciseId = btn.dataset.exerciseId;
+    const input = exerciseEditorList.querySelector(`[data-exercise-id="${exerciseId}"][data-field="imageUrl"]`);
+    const nameInput = exerciseEditorList.querySelector(`[data-exercise-id="${exerciseId}"][data-field="name"]`);
+    openImageSearch(input, nameInput?.value.trim() || '');
+}
+
+function renderExerciseEditor(exercises) {
+    exerciseEditorList.innerHTML = exercises.map((exercise, index) => {
+        if (!state.tempSwapTags[exercise.id]) {
+            setSwapsForExercise(exercise.id, exercise.swaps || []);
+        }
+
+        const isExpanded = state.expandedExercises.has(exercise.id);
+        const swaps = getSwapsForExercise(exercise.id);
+        const cardClasses = ['exercise-editor-card'];
+        if (exercise.id === state.recentDuplicatedExerciseId) {
+            cardClasses.push('duplicate-born');
+        }
+        return `
+            <div class="${cardClasses.join(' ')}" data-exercise-id="${exercise.id}">
+                <div class="exercise-collapsible-header" data-exercise-id="${exercise.id}">
+                    <div class="exercise-header-info">
+                        <strong>${escapeHtml(exercise.name || 'Novo exercício')}</strong>
+                        <span class="exercise-header-meta">${exercise.sets} séries x ${escapeHtml(exercise.reps)}</span>
+                    </div>
+                    <div class="exercise-header-actions">
+                        <button type="button" class="config-btn config-btn-secondary move-up-btn" data-exercise-id="${exercise.id}" data-move="up" title="Mover para cima" ${index === 0 ? 'disabled' : ''}>↑</button>
+                        <button type="button" class="config-btn config-btn-secondary move-down-btn" data-exercise-id="${exercise.id}" data-move="down" title="Mover para baixo" ${index === exercises.length - 1 ? 'disabled' : ''}>↓</button>
+                        <button type="button" class="config-btn config-btn-secondary duplicate-btn" data-exercise-id="${exercise.id}" title="Duplicar">📋</button>
+                        <button type="button" class="config-btn config-btn-danger remove-exercise-btn" data-exercise-id="${exercise.id}" title="Excluir exercício">🗑️</button>
+                        <button type="button" class="config-btn config-btn-secondary expand-collapse-btn" data-exercise-id="${exercise.id}">${isExpanded ? '−' : '+'}</button>
+                    </div>
+                </div>
+                <div class="exercise-collapsible-body ${isExpanded ? '' : 'hidden'}">
+                    <label class="field">
+                        <span>Nome</span>
+                        <input type="text" data-exercise-id="${exercise.id}" data-field="name" value="${escapeHtml(exercise.name)}" placeholder="Nome do exercício">
+                    </label>
+                    <div class="grid grid-cols-2 gap-3">
+                        <label class="field">
+                            <span>Séries</span>
+                            <input type="number" min="1" data-exercise-id="${exercise.id}" data-field="sets" value="${exercise.sets}">
+                        </label>
+                        <label class="field">
+                            <span>Repetições</span>
+                            <input type="text" data-exercise-id="${exercise.id}" data-field="reps" value="${escapeHtml(exercise.reps)}" placeholder="10">
+                        </label>
+                    </div>
+                    <label class="field">
+                        <span>Observação</span>
+                        <input type="text" data-exercise-id="${exercise.id}" data-field="obs" value="${escapeHtml(exercise.obs || '')}" placeholder="Opcional">
+                    </label>
+                    <label class="field">
+                        <span>Imagem do exercício</span>
+                        <div class="image-field-row">
+                            <input type="url" data-exercise-id="${exercise.id}" data-field="imageUrl" value="${escapeHtml(exercise.imageUrl || '')}" placeholder="https://...">
+                            <button type="button" class="config-btn config-btn-secondary search-exercise-image-btn" data-exercise-id="${exercise.id}">Buscar imagem</button>
+                        </div>
+                    </label>
+                    <label class="field">
+                        <span>Trocas (clique no × para remover)</span>
+                        <div class="swap-tags-container" data-exercise-id="${exercise.id}">
+                            ${renderSwapTags(exercise.id, swaps)}
+                        </div>
+                    </label>
+                </div>
+            </div>
+        `;
+    }).join('');
+    attachSwapTagEvents();
+    attachMoveButtons();
+    attachDuplicateButtons();
+    attachRemoveExerciseButtons();
+    attachExpandCollapseButtons();
+    attachSearchImageButtons();
+    updateExercisesProgress();
+}
+
+function getCurrentFormExercises() {
+    const exercises = [];
+    const cards = exerciseEditorList.querySelectorAll('.exercise-editor-card');
+    cards.forEach((card) => {
+        const exerciseId = card.dataset.exerciseId;
+        const name = card.querySelector('[data-field="name"]')?.value || '';
+        const sets = parseInt(card.querySelector('[data-field="sets"]')?.value, 10) || 3;
+        const reps = card.querySelector('[data-field="reps"]')?.value || '10';
+        const obs = card.querySelector('[data-field="obs"]')?.value || '';
+        const imageUrl = card.querySelector('[data-field="imageUrl"]')?.value || '';
+        const swaps = getSwapsForExercise(exerciseId);
+        exercises.push({ id: exerciseId, name, sets, reps, obs, imageUrl, swaps });
+    });
+    return exercises;
 }
 
 function openWorkoutForm(workout) {
@@ -847,8 +1215,18 @@ function openWorkoutForm(workout) {
     workoutDescInput.value = workout.desc;
     workoutImageUrlInput.value = workout.imageUrl;
     workoutForm.dataset.workoutId = workout.id;
+    state.currentWizardStep = 0;
+    state.expandedExercises.clear();
+    state.tempSwapTags = {};
+    workout.exercises.forEach(ex => {
+        setSwapsForExercise(ex.id, ex.swaps || []);
+    });
     workoutForm.classList.remove('hidden');
     renderExerciseEditor(workout.exercises);
+    setWizardStep(0);
+    updateExercisesProgress();
+    syncFloatingSaveVisibility();
+    workoutForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function closeWorkoutForm() {
@@ -857,133 +1235,290 @@ function closeWorkoutForm() {
     workoutForm.reset();
     workoutForm.classList.add('hidden');
     exerciseEditorList.innerHTML = '';
+    state.tempSwapTags = {};
+    state.expandedExercises.clear();
+    hideFloatingSaveButton();
 }
 
-function getCurrentFormExercises() {
-    const grouped = {};
-    exerciseEditorList.querySelectorAll('[data-exercise-id]').forEach((input) => {
-        const exerciseId = input.dataset.exerciseId;
-        const field = input.dataset.field;
-        if (!grouped[exerciseId]) {
-            grouped[exerciseId] = { id: exerciseId, swaps: [], swapImages: [] };
-        }
-        grouped[exerciseId][field] = input.value;
+function handleWorkoutSubmit(event) {
+    if (event) event.preventDefault();
+
+    if (floatingSaveWorkoutBtn && !floatingSaveWorkoutBtn.classList.contains('hidden')) {
+        floatingSaveWorkoutBtn.disabled = true;
+        floatingSaveWorkoutBtn.textContent = 'Salvando...';
+    }
+
+    const workoutId = workoutForm.dataset.workoutId || createId('workout');
+    const exercises = getCurrentFormExercises();
+    if (!workoutTabLabelInput.value.trim() || !workoutNameInput.value.trim()) {
+        alert('Preencha pelo menos badge e nome do treino.');
+        syncFloatingSaveVisibility();
+        return;
+    }
+    if (exercises.length === 0) {
+        alert('Adicione pelo menos um exercício ao treino.');
+        syncFloatingSaveVisibility();
+        return;
+    }
+    const workout = normalizeWorkout({
+        id: workoutId.startsWith('draft-') ? createId('workout') : workoutId,
+        dayNumber: parseInt(workoutDayNumberInput.value, 10),
+        tabLabel: workoutTabLabelInput.value,
+        name: workoutNameInput.value,
+        desc: workoutDescInput.value,
+        imageUrl: workoutImageUrlInput.value,
+        exercises
+    }, 0);
+    const existingIndex = state.workouts.findIndex(item => item.id === workoutId || item.id === workout.id);
+    if (existingIndex >= 0) state.workouts.splice(existingIndex, 1, workout);
+    else state.workouts.push(workout);
+    saveWorkouts();
+    state.activeWorkoutId = workout.id;
+    closeWorkoutForm();
+    hideFloatingSaveButton();
+    renderAll();
+}
+
+// ---------- End Wizard Editor Functions ----------
+
+function renderAll() {
+    renderDayButtons();
+    renderExercises();
+    renderWorkoutManager();
+    ensureDayButtonVisibility();
+}
+
+function changeWorkout(workoutId) {
+    state.activeWorkoutId = workoutId;
+    renderDayButtons();
+    renderExercises();
+    ensureDayButtonVisibility('smooth');
+}
+
+function updateExerciseProgressUI(exerciseId, total) {
+    const group = exercisesList.querySelector(`[data-series-group="${exerciseId}"]`);
+    if (!group) {
+        renderExercises();
+        return;
+    }
+
+    const dots = group.querySelectorAll('.series-dot');
+    if (dots.length !== total) {
+        renderExercises();
+        return;
+    }
+
+    const progress = state.progress[exerciseId] || 0;
+    dots.forEach((dot, index) => {
+        const isActive = index < progress;
+        dot.classList.toggle('active', isActive);
+        dot.textContent = isActive ? '✓' : String(index + 1);
     });
-
-    return Object.values(grouped).map((exercise, index) => normalizeExercise({
-        ...exercise,
-        swaps: String(exercise.swaps || '')
-            .split('\n')
-            .map((item) => item.trim())
-            .filter(Boolean)
-            .map((name, swapIndex) => ({
-                name,
-                imageUrl: String(exercise.swapImages || '')
-                    .split('\n')
-                    .map((item) => item.trim())[swapIndex] || ''
-            }))
-    }, 'form', index));
 }
 
-function createDraftWorkout() {
-    return {
-        id: createId('draft'),
-        dayNumber: 1,
-        tabLabel: 'NOVO',
-        name: 'Novo treino',
-        desc: '',
-        imageUrl: '',
-        exercises: [
-            normalizeExercise({ name: 'Novo exercício', sets: 3, reps: '10', swaps: [] }, 'draft', 0)
-        ]
-    };
+function incrementSeries(exerciseId, total) {
+    if (!state.progress[exerciseId]) {
+        state.progress[exerciseId] = 0;
+    }
+
+    state.progress[exerciseId] += 1;
+
+    if (state.progress[exerciseId] > total) {
+        state.progress[exerciseId] = 0;
+    }
+
+    updateExerciseProgressUI(exerciseId, total);
+
+    if (state.progress[exerciseId] === total) {
+        confetti({
+            particleCount: 150,
+            spread: 70,
+            origin: { y: 0.6 },
+            colors: ['#3b82f6', '#60a5fa', '#ffffff']
+        });
+    }
 }
 
-function updateJsonEditorWithExample() {
-    const example = {
-        settings: {
-            enableWeightTracking: false,
-            enableImageExpansion: true,
-            enableWakeLock: false,
-            restSeconds: 60
-        },
-        workouts: [
-            {
-                dayNumber: 1,
-                tabLabel: 'SEG - PUSH',
-                name: 'Push',
-                desc: 'Peito + Ombro + Triceps',
-                imageUrl: 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=800&q=80',
-                exercises: [
-                    { name: 'Supino reto', sets: 4, reps: '8-10', swaps: ['Chest press', 'Supino com halter'] },
-                    { name: 'Desenvolvimento sentado', sets: 3, reps: '10', swaps: ['Shoulder press maquina'] }
-                ]
-            },
-            {
-                dayNumber: 3,
-                tabLabel: 'QUA - PULL',
-                name: 'Pull',
-                desc: 'Costas + Biceps',
-                imageUrl: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=800&q=80',
-                exercises: [
-                    { name: 'Puxada frontal', sets: 4, reps: '10', swaps: ['Pulldown com triangulo'] },
-                    { name: 'Rosca alternada', sets: 3, reps: '12', swaps: ['Rosca no cabo'] }
-                ]
-            },
-            {
-                dayNumber: 5,
-                tabLabel: 'SEX - LEG',
-                name: 'Leg Day',
-                desc: 'Quad + Posterior + Gluteo',
-                imageUrl: 'https://images.unsplash.com/photo-1434608519344-49d77a699e1d?auto=format&fit=crop&w=800&q=80',
-                exercises: [
-                    { name: 'Leg press', sets: 4, reps: '12', swaps: ['Agachamento goblet'] },
-                    { name: 'Mesa flexora', sets: 3, reps: '12', swaps: ['Flexora sentada'] }
-                ]
-            }
-        ]
-    };
-
-    jsonEditor.value = JSON.stringify(example, null, 2);
+function showSwaps(exerciseId) {
+    const element = document.getElementById(`swaps-${exerciseId}`);
+    if (element) {
+        element.classList.remove('hidden');
+    }
 }
 
-function exportCurrentConfig() {
-    const payload = {
-        settings: state.settings,
-        workouts: state.workouts
-    };
-    jsonEditor.value = JSON.stringify(payload, null, 2);
+function hideSwaps(exerciseId) {
+    const element = document.getElementById(`swaps-${exerciseId}`);
+    if (element) {
+        element.classList.add('hidden');
+    }
 }
 
-function importJsonConfig() {
-    try {
-        const parsed = JSON.parse(jsonEditor.value);
-        const workoutsInput = Array.isArray(parsed) ? parsed : parsed.workouts;
-        const settingsInput = Array.isArray(parsed) ? null : parsed.settings;
-        const workouts = normalizeWorkouts(workoutsInput);
+function applySwap(exerciseId, newName) {
+    state.swaps[exerciseId] = decodeSwapPayload(newName);
+    renderExercises();
+}
 
-        if (!workouts.length) {
-            alert('Nao encontrei treinos validos no JSON.');
+function updateExerciseWeight(exerciseId, value) {
+    const trimmed = String(value).trim();
+    if (!trimmed) {
+        delete state.weights[exerciseId];
+    } else {
+        state.weights[exerciseId] = trimmed;
+    }
+    saveWeights();
+}
+
+function updateTimerButtonUI(button, progressBar, timeLeft, millisecondsLeft = timeLeft * 1000) {
+    if (!button || !progressBar) {
+        return;
+    }
+
+    const exerciseId = button.dataset.exerciseId;
+    const restDurationSeconds = state.timers[exerciseId]?.durationSeconds || getRestDurationSeconds();
+    const durationMilliseconds = restDurationSeconds * 1000;
+    const safeTimeLeft = Math.max(0, timeLeft);
+    const safeMillisecondsLeft = Math.max(0, millisecondsLeft);
+    const percent = safeMillisecondsLeft > 0
+        ? ((durationMilliseconds - safeMillisecondsLeft) / durationMilliseconds) * 100
+        : 0;
+
+    progressBar.style.width = `${percent}%`;
+    button.textContent = safeTimeLeft > 0 ? `${safeTimeLeft}s` : 'DESCANSO';
+    button.dataset.running = safeTimeLeft > 0 ? 'true' : 'false';
+    button.classList.toggle('opacity-50', safeTimeLeft > 0);
+}
+
+function finishTimer(exerciseId, button, progressBar, shouldPlaySound = true) {
+    const timerState = state.timers[exerciseId];
+    const card = button?.closest('.card');
+    if (timerState?.intervalId) {
+        clearInterval(timerState.intervalId);
+    }
+
+    delete state.timers[exerciseId];
+    progressBar.style.width = '100%';
+    button.textContent = '0s';
+    button.dataset.running = 'true';
+    button.classList.add('opacity-50');
+
+    if (shouldPlaySound) {
+        triggerTimerCompletionFeedback();
+    }
+
+    playTimerCompletionAnimation(card);
+
+    window.setTimeout(() => {
+        updateTimerButtonUI(button, progressBar, 0, 0);
+    }, 180);
+}
+
+function syncTimerUI(exerciseId, shouldPlaySound = true) {
+    const button = exercisesList.querySelector(`button[data-exercise-id="${exerciseId}"]`);
+    const card = button?.closest('.card');
+    const progressBar = card?.querySelector('.timer-progress');
+    const timerState = state.timers[exerciseId];
+
+    if (!button || !progressBar || !timerState) {
+        return;
+    }
+
+    const millisecondsLeft = timerState.endAt - Date.now();
+    const timeLeft = Math.ceil(millisecondsLeft / 1000);
+    if (millisecondsLeft <= 0) {
+        finishTimer(exerciseId, button, progressBar, shouldPlaySound);
+        return;
+    }
+
+    updateTimerButtonUI(button, progressBar, timeLeft, millisecondsLeft);
+}
+
+function restoreExpiredTimersToOneSecond() {
+    const now = Date.now();
+
+    Object.keys(state.timers).forEach((exerciseId) => {
+        const timerState = state.timers[exerciseId];
+        if (!timerState || timerState.endAt > now) {
             return;
         }
 
-        state.workouts = workouts;
-        if (settingsInput) {
-            state.settings.enableWeightTracking = Boolean(settingsInput.enableWeightTracking);
-            state.settings.enableImageExpansion = settingsInput.enableImageExpansion !== false;
-            state.settings.enableWakeLock = Boolean(settingsInput.enableWakeLock);
-            state.settings.restSeconds = Math.max(5, parseInt(settingsInput.restSeconds, 10) || DEFAULT_SETTINGS.restSeconds);
-            saveSettings();
-        }
-        saveWorkouts();
-        syncWeightToggle();
-        state.activeWorkoutId = getInitialWorkoutId();
-        closeWorkoutForm();
-        renderAll();
-        syncWakeLock();
-    } catch (error) {
-        alert('O JSON esta invalido. Revise e tente novamente.');
+        timerState.endAt = now + 1000;
+    });
+}
+
+async function startTimer(button) {
+    const card = button.closest('.card');
+    const progressBar = card?.querySelector('.timer-progress');
+    const exerciseId = button.dataset.exerciseId;
+    const restDurationSeconds = getRestDurationSeconds();
+
+    if (!exerciseId || !progressBar || button.dataset.running === 'true') {
+        return;
     }
+
+    const existingTimer = state.timers[exerciseId];
+    if (existingTimer?.intervalId) {
+        clearInterval(existingTimer.intervalId);
+    }
+
+    const endAt = Date.now() + (restDurationSeconds * 1000);
+    state.timers[exerciseId] = {
+        endAt,
+        durationSeconds: restDurationSeconds,
+        intervalId: null
+    };
+
+    updateTimerButtonUI(button, progressBar, restDurationSeconds, restDurationSeconds * 1000);
+    syncTimerUI(exerciseId, false);
+
+    state.timers[exerciseId].intervalId = window.setInterval(() => {
+        syncTimerUI(exerciseId, true);
+    }, 250);
+}
+
+function editWorkout(workoutId) {
+    const workout = getWorkoutById(workoutId);
+    if (!workout) {
+        return;
+    }
+    openWorkoutForm(JSON.parse(JSON.stringify(workout)));
+    setConfigOpen(true);
+}
+
+function deleteWorkout(workoutId) {
+    const workout = getWorkoutById(workoutId);
+    if (!workout) {
+        return;
+    }
+
+    const confirmed = window.confirm(`Excluir o treino "${workout.name}"?`);
+    if (!confirmed) {
+        return;
+    }
+
+    state.workouts = state.workouts.filter((item) => item.id !== workoutId);
+    if (!state.workouts.length) {
+        state.workouts = cloneDefaultWorkouts();
+    }
+    saveWorkouts();
+
+    if (state.activeWorkoutId === workoutId) {
+        state.activeWorkoutId = getInitialWorkoutId();
+    }
+
+    if (state.editingWorkoutId === workoutId) {
+        closeWorkoutForm();
+    }
+
+    renderAll();
+}
+
+function addExerciseField() {
+    const exercises = getCurrentFormExercises();
+    const newExercise = normalizeExercise({ name: 'Novo exercício', sets: 3, reps: '10', swaps: [] }, 'form', exercises.length);
+    exercises.push(newExercise);
+    state.expandedExercises.add(newExercise.id);
+    renderExerciseEditor(exercises);
+    updateExercisesProgress();
 }
 
 function syncWeightToggle() {
@@ -1334,322 +1869,7 @@ function hideImageLoadFallback(imageElement, fallbackElement) {
     fallbackElement.classList.add('hidden');
 }
 
-function renderAll() {
-    renderDayButtons();
-    renderExercises();
-    renderWorkoutManager();
-    ensureDayButtonVisibility();
-}
-
-function changeWorkout(workoutId) {
-    state.activeWorkoutId = workoutId;
-    renderDayButtons();
-    renderExercises();
-    ensureDayButtonVisibility('smooth');
-}
-
-function updateExerciseProgressUI(exerciseId, total) {
-    const group = exercisesList.querySelector(`[data-series-group="${exerciseId}"]`);
-    if (!group) {
-        renderExercises();
-        return;
-    }
-
-    const dots = group.querySelectorAll('.series-dot');
-    if (dots.length !== total) {
-        renderExercises();
-        return;
-    }
-
-    const progress = state.progress[exerciseId] || 0;
-    dots.forEach((dot, index) => {
-        const isActive = index < progress;
-        dot.classList.toggle('active', isActive);
-        dot.textContent = isActive ? '✓' : String(index + 1);
-    });
-}
-
-function incrementSeries(exerciseId, total) {
-    if (!state.progress[exerciseId]) {
-        state.progress[exerciseId] = 0;
-    }
-
-    state.progress[exerciseId] += 1;
-
-    if (state.progress[exerciseId] > total) {
-        state.progress[exerciseId] = 0;
-    }
-
-    updateExerciseProgressUI(exerciseId, total);
-
-    if (state.progress[exerciseId] === total) {
-        confetti({
-            particleCount: 150,
-            spread: 70,
-            origin: { y: 0.6 },
-            colors: ['#3b82f6', '#60a5fa', '#ffffff']
-        });
-    }
-}
-
-function showSwaps(exerciseId) {
-    const element = document.getElementById(`swaps-${exerciseId}`);
-    if (element) {
-        element.classList.remove('hidden');
-    }
-}
-
-function hideSwaps(exerciseId) {
-    const element = document.getElementById(`swaps-${exerciseId}`);
-    if (element) {
-        element.classList.add('hidden');
-    }
-}
-
-function applySwap(exerciseId, newName) {
-    state.swaps[exerciseId] = decodeSwapPayload(newName);
-    renderExercises();
-}
-
-function startTimerLegacy(button) {
-    return startTimer(button);
-    const card = button.closest('.card');
-    const progressBar = card.querySelector('.timer-progress');
-
-    unlockAudio();
-
-    if (button.dataset.running === 'true') {
-        return;
-    }
-
-    let timeLeft = 60;
-    button.dataset.running = 'true';
-    button.classList.add('opacity-50');
-
-    const interval = setInterval(() => {
-        timeLeft -= 1;
-        const percent = ((60 - timeLeft) / 60) * 100;
-        progressBar.style.width = `${percent}%`;
-        button.innerText = `⏳ ${timeLeft}s`;
-
-        if (timeLeft <= 0) {
-            clearInterval(interval);
-            button.innerText = '⏱️ DESCANSO';
-            button.dataset.running = 'false';
-            button.classList.remove('opacity-50');
-            progressBar.style.width = '0%';
-            beepSound.currentTime = 0;
-            beepSound.play().catch(() => console.log('Erro ao tocar som: interação necessaria'));
-        }
-    }, 1000);
-}
-
-function updateExerciseWeight(exerciseId, value) {
-    const trimmed = String(value).trim();
-    if (!trimmed) {
-        delete state.weights[exerciseId];
-    } else {
-        state.weights[exerciseId] = trimmed;
-    }
-    saveWeights();
-}
-
-function updateTimerButtonUI(button, progressBar, timeLeft, millisecondsLeft = timeLeft * 1000) {
-    if (!button || !progressBar) {
-        return;
-    }
-
-    const exerciseId = button.dataset.exerciseId;
-    const restDurationSeconds = state.timers[exerciseId]?.durationSeconds || getRestDurationSeconds();
-    const durationMilliseconds = restDurationSeconds * 1000;
-    const safeTimeLeft = Math.max(0, timeLeft);
-    const safeMillisecondsLeft = Math.max(0, millisecondsLeft);
-    const percent = safeMillisecondsLeft > 0
-        ? ((durationMilliseconds - safeMillisecondsLeft) / durationMilliseconds) * 100
-        : 0;
-
-    progressBar.style.width = `${percent}%`;
-    button.textContent = safeTimeLeft > 0 ? `${safeTimeLeft}s` : 'DESCANSO';
-    button.dataset.running = safeTimeLeft > 0 ? 'true' : 'false';
-    button.classList.toggle('opacity-50', safeTimeLeft > 0);
-}
-
-function finishTimer(exerciseId, button, progressBar, shouldPlaySound = true) {
-    const timerState = state.timers[exerciseId];
-    const card = button?.closest('.card');
-    if (timerState?.intervalId) {
-        clearInterval(timerState.intervalId);
-    }
-
-    delete state.timers[exerciseId];
-    progressBar.style.width = '100%';
-    button.textContent = '0s';
-    button.dataset.running = 'true';
-    button.classList.add('opacity-50');
-
-    if (shouldPlaySound) {
-        triggerTimerCompletionFeedback();
-    }
-
-    playTimerCompletionAnimation(card);
-
-    window.setTimeout(() => {
-        updateTimerButtonUI(button, progressBar, 0, 0);
-    }, 180);
-}
-
-function syncTimerUI(exerciseId, shouldPlaySound = true) {
-    const button = exercisesList.querySelector(`button[data-exercise-id="${exerciseId}"]`);
-    const card = button?.closest('.card');
-    const progressBar = card?.querySelector('.timer-progress');
-    const timerState = state.timers[exerciseId];
-
-    if (!button || !progressBar || !timerState) {
-        return;
-    }
-
-    const millisecondsLeft = timerState.endAt - Date.now();
-    const timeLeft = Math.ceil(millisecondsLeft / 1000);
-    if (millisecondsLeft <= 0) {
-        finishTimer(exerciseId, button, progressBar, shouldPlaySound);
-        return;
-    }
-
-    updateTimerButtonUI(button, progressBar, timeLeft, millisecondsLeft);
-}
-
-function restoreExpiredTimersToOneSecond() {
-    const now = Date.now();
-
-    Object.keys(state.timers).forEach((exerciseId) => {
-        const timerState = state.timers[exerciseId];
-        if (!timerState || timerState.endAt > now) {
-            return;
-        }
-
-        timerState.endAt = now + 1000;
-    });
-}
-
-async function startTimer(button) {
-    const card = button.closest('.card');
-    const progressBar = card?.querySelector('.timer-progress');
-    const exerciseId = button.dataset.exerciseId;
-    const restDurationSeconds = getRestDurationSeconds();
-
-    if (!exerciseId || !progressBar || button.dataset.running === 'true') {
-        return;
-    }
-
-    const existingTimer = state.timers[exerciseId];
-    if (existingTimer?.intervalId) {
-        clearInterval(existingTimer.intervalId);
-    }
-
-    const endAt = Date.now() + (restDurationSeconds * 1000);
-    state.timers[exerciseId] = {
-        endAt,
-        durationSeconds: restDurationSeconds,
-        intervalId: null
-    };
-
-    updateTimerButtonUI(button, progressBar, restDurationSeconds, restDurationSeconds * 1000);
-    syncTimerUI(exerciseId, false);
-
-    state.timers[exerciseId].intervalId = window.setInterval(() => {
-        syncTimerUI(exerciseId, true);
-    }, 250);
-}
-
-function editWorkout(workoutId) {
-    const workout = getWorkoutById(workoutId);
-    if (!workout) {
-        return;
-    }
-    openWorkoutForm(JSON.parse(JSON.stringify(workout)));
-    setConfigOpen(true);
-}
-
-function deleteWorkout(workoutId) {
-    const workout = getWorkoutById(workoutId);
-    if (!workout) {
-        return;
-    }
-
-    const confirmed = window.confirm(`Excluir o treino "${workout.name}"?`);
-    if (!confirmed) {
-        return;
-    }
-
-    state.workouts = state.workouts.filter((item) => item.id !== workoutId);
-    if (!state.workouts.length) {
-        state.workouts = cloneDefaultWorkouts();
-    }
-    saveWorkouts();
-
-    if (state.activeWorkoutId === workoutId) {
-        state.activeWorkoutId = getInitialWorkoutId();
-    }
-
-    if (state.editingWorkoutId === workoutId) {
-        closeWorkoutForm();
-    }
-
-    renderAll();
-}
-
-function removeExerciseField(exerciseId) {
-    const cards = exerciseEditorList.querySelectorAll('.exercise-editor-card');
-    if (cards.length === 1) {
-        alert('Deixe pelo menos um exercício no treino.');
-        return;
-    }
-
-    const element = exerciseEditorList.querySelector(`[data-exercise-id="${exerciseId}"]`)?.closest('.exercise-editor-card');
-    if (element) {
-        element.remove();
-    }
-}
-
-function addExerciseField() {
-    const exercises = getCurrentFormExercises();
-    exercises.push(normalizeExercise({ name: 'Novo exercício', sets: 3, reps: '10', swaps: [] }, 'form', exercises.length));
-    renderExerciseEditor(exercises);
-}
-
-function handleWorkoutSubmit(event) {
-    event.preventDefault();
-
-    const workoutId = workoutForm.dataset.workoutId || createId('workout');
-    const exercises = getCurrentFormExercises();
-
-    if (!workoutTabLabelInput.value.trim() || !workoutNameInput.value.trim()) {
-        alert('Preencha pelo menos badge e nome do treino.');
-        return;
-    }
-
-    const workout = normalizeWorkout({
-        id: workoutId.startsWith('draft-') ? createId('workout') : workoutId,
-        dayNumber: parseInt(workoutDayNumberInput.value, 10),
-        tabLabel: workoutTabLabelInput.value,
-        name: workoutNameInput.value,
-        desc: workoutDescInput.value,
-        imageUrl: workoutImageUrlInput.value,
-        exercises
-    }, 0);
-
-    const existingIndex = state.workouts.findIndex((item) => item.id === workoutId || item.id === workout.id);
-    if (existingIndex >= 0) {
-        state.workouts.splice(existingIndex, 1, workout);
-    } else {
-        state.workouts.push(workout);
-    }
-
-    saveWorkouts();
-    state.activeWorkoutId = workout.id;
-    closeWorkoutForm();
-    renderAll();
-}
+// Event listeners
 
 toggleConfigBtn.addEventListener('click', () => {
     setConfigOpen(!state.configOpen);
@@ -1713,9 +1933,11 @@ cancelWorkoutEditBtn.addEventListener('click', () => {
     closeWorkoutForm();
 });
 
-addExerciseBtn.addEventListener('click', () => {
-    addExerciseField();
-});
+if (addExerciseBtn) {
+    addExerciseBtn.addEventListener('click', () => {
+        addExerciseField();
+    });
+}
 
 searchWorkoutImageBtn.addEventListener('click', () => {
     openImageSearch(workoutImageUrlInput, workoutNameInput.value.trim() || workoutTabLabelInput.value.trim());
@@ -1757,15 +1979,89 @@ exercisesList.addEventListener('error', (event) => {
 }, true);
 
 fillExampleJsonBtn.addEventListener('click', () => {
-    updateJsonEditorWithExample();
+    const example = {
+        settings: {
+            enableWeightTracking: false,
+            enableImageExpansion: true,
+            enableWakeLock: false,
+            restSeconds: 60
+        },
+        workouts: [
+            {
+                dayNumber: 1,
+                tabLabel: 'SEG - PUSH',
+                name: 'Push',
+                desc: 'Peito + Ombro + Triceps',
+                imageUrl: 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=800&q=80',
+                exercises: [
+                    { name: 'Supino reto', sets: 4, reps: '8-10', swaps: ['Chest press', 'Supino com halter'] },
+                    { name: 'Desenvolvimento sentado', sets: 3, reps: '10', swaps: ['Shoulder press maquina'] }
+                ]
+            },
+            {
+                dayNumber: 3,
+                tabLabel: 'QUA - PULL',
+                name: 'Pull',
+                desc: 'Costas + Biceps',
+                imageUrl: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=800&q=80',
+                exercises: [
+                    { name: 'Puxada frontal', sets: 4, reps: '10', swaps: ['Pulldown com triangulo'] },
+                    { name: 'Rosca alternada', sets: 3, reps: '12', swaps: ['Rosca no cabo'] }
+                ]
+            },
+            {
+                dayNumber: 5,
+                tabLabel: 'SEX - LEG',
+                name: 'Leg Day',
+                desc: 'Quad + Posterior + Gluteo',
+                imageUrl: 'https://images.unsplash.com/photo-1434608519344-49d77a699e1d?auto=format&fit=crop&w=800&q=80',
+                exercises: [
+                    { name: 'Leg press', sets: 4, reps: '12', swaps: ['Agachamento goblet'] },
+                    { name: 'Mesa flexora', sets: 3, reps: '12', swaps: ['Flexora sentada'] }
+                ]
+            }
+        ]
+    };
+    jsonEditor.value = JSON.stringify(example, null, 2);
 });
 
 exportJsonBtn.addEventListener('click', () => {
-    exportCurrentConfig();
+    const payload = {
+        settings: state.settings,
+        workouts: state.workouts
+    };
+    jsonEditor.value = JSON.stringify(payload, null, 2);
 });
 
 importJsonBtn.addEventListener('click', () => {
-    importJsonConfig();
+    try {
+        const parsed = JSON.parse(jsonEditor.value);
+        const workoutsInput = Array.isArray(parsed) ? parsed : parsed.workouts;
+        const settingsInput = Array.isArray(parsed) ? null : parsed.settings;
+        const workouts = normalizeWorkouts(workoutsInput);
+
+        if (!workouts.length) {
+            alert('Nao encontrei treinos validos no JSON.');
+            return;
+        }
+
+        state.workouts = workouts;
+        if (settingsInput) {
+            state.settings.enableWeightTracking = Boolean(settingsInput.enableWeightTracking);
+            state.settings.enableImageExpansion = settingsInput.enableImageExpansion !== false;
+            state.settings.enableWakeLock = Boolean(settingsInput.enableWakeLock);
+            state.settings.restSeconds = Math.max(5, parseInt(settingsInput.restSeconds, 10) || DEFAULT_SETTINGS.restSeconds);
+            saveSettings();
+        }
+        saveWorkouts();
+        syncWeightToggle();
+        state.activeWorkoutId = getInitialWorkoutId();
+        closeWorkoutForm();
+        renderAll();
+        syncWakeLock();
+    } catch (error) {
+        alert('O JSON esta invalido. Revise e tente novamente.');
+    }
 });
 
 workoutForm.addEventListener('submit', handleWorkoutSubmit);
@@ -1927,7 +2223,6 @@ window.startTimer = startTimer;
 window.updateExerciseWeight = updateExerciseWeight;
 window.editWorkout = editWorkout;
 window.deleteWorkout = deleteWorkout;
-window.removeExerciseField = removeExerciseField;
 window.applyImageSearchResult = applyImageSearchResult;
 
 window.onload = () => {
@@ -1948,3 +2243,87 @@ window.onload = () => {
     }
 };
 
+function createDraftWorkout() {
+    return {
+        id: createId('draft'),
+        dayNumber: 1,
+        tabLabel: 'NOVO',
+        name: 'Novo treino',
+        desc: '',
+        imageUrl: '',
+        exercises: [
+            normalizeExercise({ name: 'Novo exercício', sets: 3, reps: '10', swaps: [] }, 'draft', 0)
+        ]
+    };
+}
+
+function updateJsonEditorWithExample() {
+    const example = {
+        settings: {
+            enableWeightTracking: false,
+            enableImageExpansion: true,
+            enableWakeLock: false,
+            restSeconds: 60
+        },
+        workouts: [
+            {
+                dayNumber: 1,
+                tabLabel: 'SEG - PUSH',
+                name: 'Push',
+                desc: 'Peito + Ombro + Triceps',
+                imageUrl: 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=800&q=80',
+                exercises: [
+                    { name: 'Supino reto', sets: 4, reps: '8-10', swaps: ['Chest press', 'Supino com halter'] },
+                    { name: 'Desenvolvimento sentado', sets: 3, reps: '10', swaps: ['Shoulder press maquina'] }
+                ]
+            },
+            {
+                dayNumber: 3,
+                tabLabel: 'QUA - PULL',
+                name: 'Pull',
+                desc: 'Costas + Biceps',
+                imageUrl: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=800&q=80',
+                exercises: [
+                    { name: 'Puxada frontal', sets: 4, reps: '10', swaps: ['Pulldown com triangulo'] },
+                    { name: 'Rosca alternada', sets: 3, reps: '12', swaps: ['Rosca no cabo'] }
+                ]
+            },
+            {
+                dayNumber: 5,
+                tabLabel: 'SEX - LEG',
+                name: 'Leg Day',
+                desc: 'Quad + Posterior + Gluteo',
+                imageUrl: 'https://images.unsplash.com/photo-1434608519344-49d77a699e1d?auto=format&fit=crop&w=800&q=80',
+                exercises: [
+                    { name: 'Leg press', sets: 4, reps: '12', swaps: ['Agachamento goblet'] },
+                    { name: 'Mesa flexora', sets: 3, reps: '12', swaps: ['Flexora sentada'] }
+                ]
+            }
+        ]
+    };
+    jsonEditor.value = JSON.stringify(example, null, 2);
+}
+
+// Wizard event listeners
+if (nextToExercisesBtn) {
+    nextToExercisesBtn.addEventListener('click', () => setWizardStep(1));
+}
+if (prevToBasicBtn) {
+    prevToBasicBtn.addEventListener('click', () => setWizardStep(0));
+}
+if (addExerciseWizardBtn) {
+    addExerciseWizardBtn.addEventListener('click', () => {
+        addExerciseField();
+    });
+}
+if (floatingSaveWorkoutBtn) {
+    floatingSaveWorkoutBtn.addEventListener('click', () => handleWorkoutSubmit());
+}
+if (wizardTabs.length) {
+    wizardTabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            const step = parseInt(tab.dataset.wizardStep, 10);
+            if (!isNaN(step)) setWizardStep(step);
+        });
+    });
+}
