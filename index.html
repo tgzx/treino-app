@@ -30,6 +30,8 @@
         </button>
     </header>
 
+    <div id="configBackdrop" class="drawer-backdrop hidden" aria-hidden="true"></div>
+
     <main class="max-w-md mx-auto p-4">
         <section class="card p-4 rounded-xl mb-6 border border-slate-200 dark:border-slate-700 shadow-sm">
             <h2 class="font-bold mb-2 flex items-center gap-2">
@@ -46,14 +48,33 @@
         <section class="card p-4 rounded-xl mb-6 border border-slate-200 dark:border-slate-700 shadow-sm">
             <div class="flex items-center justify-between gap-3">
                 <div>
-                    <h2 class="font-bold">Personalizar ficha</h2>
-                    <p class="text-sm opacity-80">Edite seus treinos na tela ou por JSON. Tudo fica salvo no navegador.</p>
+                    <h2 class="font-bold">Gerenciar treinos</h2>
+                    <p class="text-sm opacity-80">Cadastre dias, exercícios, configurações e JSON sem poluir a tela do treino.</p>
                 </div>
-                <button id="toggleConfigBtn" class="panel-toggle px-3 py-2 rounded-lg text-sm font-semibold" type="button">Abrir</button>
+                <button id="toggleConfigBtn" class="panel-toggle px-3 py-2 rounded-lg text-sm font-semibold" type="button" aria-controls="configPanel" aria-expanded="false">Menu</button>
             </div>
 
-            <div id="configPanel" class="hidden mt-4 space-y-5">
-                <div class="settings-grid">
+            <div id="configPanel" class="hidden mt-4 space-y-5" role="dialog" aria-modal="true" aria-label="Gerenciar treinos">
+                <div class="drawer-panel-head">
+                    <div>
+                        <p class="drawer-eyebrow">Menu de edição</p>
+                        <h2>Gerenciar treinos</h2>
+                        <p>Crie, organize, importe e ajuste sua ficha.</p>
+                    </div>
+                    <button id="closeConfigDrawerBtn" class="drawer-close-btn" type="button" aria-label="Fechar menu">&times;</button>
+                </div>
+
+                <div id="drawerQuickActions" class="drawer-quick-actions">
+                    <button id="drawerNewWorkoutBtn" class="save-btn" type="button">Novo treino</button>
+                    <button id="drawerImportShortcutBtn" class="config-btn config-btn-secondary" type="button">JSON</button>
+                </div>
+
+                <section class="drawer-section">
+                    <div class="drawer-section-title">
+                        <h3>Configurações rápidas</h3>
+                        <p>Preferências gerais do app.</p>
+                    </div>
+                    <div class="settings-grid">
                     <label class="setting-card">
                         <span class="font-semibold">Controle de peso</span>
                         <span class="text-sm opacity-80">Mostra um campo opcional de carga em cada exercício.</span>
@@ -87,10 +108,15 @@
                     </div>
                 </div>
 
-                <div>
-                    <h3 class="font-semibold mb-3">Treinos salvos</h3>
+                </section>
+
+                <section class="drawer-section">
+                    <div class="drawer-section-title">
+                        <h3>Treinos salvos</h3>
+                        <p>Edite, exclua ou escolha um dia para ajustar.</p>
+                    </div>
                     <div id="workoutManagerList" class="space-y-3"></div>
-                </div>
+                </section>
 
                 <form id="workoutForm" class="hidden config-form space-y-4">
                     <div class="flex items-center justify-between gap-3">
@@ -156,9 +182,18 @@
                         <div id="exerciseEditorList" class="space-y-3"></div>
                         <button id="prevToBasicBtn" type="button" class="config-btn w-full">← Voltar</button>
                     </div>
+
+                    <div class="form-save-actions">
+                        <button id="inlineSaveWorkoutBtn" type="submit" class="save-btn w-full">Salvar treino</button>
+                    </div>
                 </form>
 
-                <div class="json-panel space-y-3">
+                <section class="drawer-section json-drawer-section">
+                    <div class="drawer-section-title">
+                        <h3>Importar / exportar JSON</h3>
+                        <p>Use quando quiser copiar, salvar ou restaurar fichas inteiras.</p>
+                    </div>
+                    <div class="json-panel space-y-3">
                     <div class="flex items-center justify-between gap-3">
                         <h3 class="font-semibold">Importar / exportar JSON</h3>
                         <div class="flex flex-wrap gap-2">
@@ -169,7 +204,8 @@
                     </div>
                     <p class="text-sm opacity-80">Aceita um objeto com `workouts` e, se quiser, `settings`.</p>
                     <textarea id="jsonEditor" class="json-editor" spellcheck="false"></textarea>
-                </div>
+                    </div>
+                </section>
             </div>
         </section>
 

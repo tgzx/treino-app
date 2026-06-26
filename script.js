@@ -122,6 +122,11 @@ const workoutHeroImage = document.getElementById('workoutHeroImage');
 const workoutHeroFallback = document.getElementById('workoutHeroFallback');
 const toggleConfigBtn = document.getElementById('toggleConfigBtn');
 const configPanel = document.getElementById('configPanel');
+const configBackdrop = document.getElementById('configBackdrop');
+const closeConfigDrawerBtn = document.getElementById('closeConfigDrawerBtn');
+const drawerNewWorkoutBtn = document.getElementById('drawerNewWorkoutBtn');
+const drawerQuickActions = document.getElementById('drawerQuickActions');
+const drawerImportShortcutBtn = document.getElementById('drawerImportShortcutBtn');
 const weightTrackingToggle = document.getElementById('weightTrackingToggle');
 const imageExpansionToggle = document.getElementById('imageExpansionToggle');
 const wakeLockToggle = document.getElementById('wakeLockToggle');
@@ -170,6 +175,11 @@ const prevToBasicBtn = document.getElementById('prevToBasicBtn');
 const addExerciseWizardBtn = document.getElementById('addExerciseWizardBtn');
 const wizardExercisesProgress = document.getElementById('wizardExercisesProgress');
 const floatingSaveWorkoutBtn = document.getElementById('floatingSaveWorkoutBtn');
+const inlineSaveWorkoutBtn = document.getElementById('inlineSaveWorkoutBtn');
+
+if (configPanel && configPanel.parentElement !== document.body) {
+    document.body.appendChild(configPanel);
+}
 
 const WIKIMEDIA_IMAGE_SEARCH_ENDPOINT = 'https://commons.wikimedia.org/w/api.php';
 const OPENVERSE_IMAGE_SEARCH_ENDPOINT = 'https://api.openverse.org/v1/images/';
@@ -585,7 +595,21 @@ function playTimerCompletionAnimation(card) {
 function setConfigOpen(open) {
     state.configOpen = open;
     configPanel.classList.toggle('hidden', !open);
-    toggleConfigBtn.textContent = open ? 'Fechar' : 'Abrir';
+    if (configBackdrop) {
+        configBackdrop.classList.toggle('hidden', !open);
+    }
+    document.body.classList.toggle('drawer-open', open);
+    toggleConfigBtn.textContent = open ? 'Fechar' : 'Menu';
+    toggleConfigBtn.setAttribute('aria-expanded', String(open));
+    syncDrawerStickyOffsets();
+    syncDrawerQuickActionsVisibility();
+    syncFloatingSaveVisibility();
+
+    if (open) {
+        window.setTimeout(() => {
+            closeConfigDrawerBtn?.focus({ preventScroll: true });
+        }, 80);
+    }
 }
 
 function getDayButtonTarget() {
@@ -607,6 +631,36 @@ function ensureDayButtonVisibility(behavior = 'auto') {
             inline: 'center'
         });
     });
+}
+
+
+
+function isWorkoutDraftOpen() {
+    return Boolean(workoutForm && !workoutForm.classList.contains('hidden'));
+}
+
+function requestCloseConfig() {
+    if (!state.configOpen) {
+        return;
+    }
+
+    if (isWorkoutDraftOpen()) {
+        const actionLabel = state.editingWorkoutId?.startsWith('draft-') ? 'criacao' : 'edicao';
+        const shouldDiscardDraft = window.confirm(
+            `Cancelar ${actionLabel} do treino e descartar o rascunho?
+
+OK = cancelar e fechar o menu
+Cancelar = manter o rascunho aberto`
+        );
+
+        if (!shouldDiscardDraft) {
+            return;
+        }
+
+        closeWorkoutForm();
+    }
+
+    setConfigOpen(false);
 }
 
 function renderDayButtons() {
@@ -763,12 +817,12 @@ function renderExercises() {
 
             <div class="absolute bottom-0 left-0 h-1 bg-blue-500 timer-progress" style="width: ${timerPercent}%"></div>
 
-            <div id="swaps-${exercise.id}" class="hidden absolute inset-0 bg-white dark:bg-slate-900 z-10 p-4 overflow-y-auto">
-                <div class="flex justify-between items-center mb-3">
+            <div id="swaps-${exercise.id}" class="hidden absolute inset-0 bg-white dark:bg-slate-900 z-10 p-4 swap-overlay">
+                <div class="swap-overlay-header flex justify-between items-center mb-3">
                     <h4 class="font-bold text-sm uppercase">Trocas disponiveis</h4>
                     <button onclick="hideSwaps('${exercise.id}')" class="text-xs font-bold text-red-500">FECHAR</button>
                 </div>
-                <div class="space-y-2">
+                <div class="swap-options-list space-y-2">
                     <button onclick="applySwap('${exercise.id}', '${originalPayload}')" class="swap-option w-full text-left p-2 text-sm border rounded bg-slate-50 dark:bg-slate-800">
                         ${exercise.imageUrl ? `<img src="${escapeHtml(exercise.imageUrl)}" alt="${escapeHtml(exercise.name)}" class="swap-option-image">` : ''}
                         <span>${escapeHtml(exercise.name)} (Original)</span>
@@ -810,25 +864,61 @@ function renderWorkoutManager() {
 
 // ---------- Wizard Editor Functions ----------
 
+function setSaveButtonsLoading(isLoading) {
+    [floatingSaveWorkoutBtn, inlineSaveWorkoutBtn].forEach((button) => {
+        if (!button) {
+            return;
+        }
+
+        button.disabled = isLoading;
+        button.textContent = isLoading ? 'Salvando...' : 'Salvar treino';
+    });
+}
+
 function syncFloatingSaveVisibility() {
     if (!floatingSaveWorkoutBtn || !workoutForm) {
+        document.body.classList.remove('floating-save-visible');
+        setSaveButtonsLoading(false);
         return;
     }
 
-    const isEditing = !workoutForm.classList.contains('hidden');
-    floatingSaveWorkoutBtn.classList.toggle('hidden', !isEditing);
-    floatingSaveWorkoutBtn.disabled = false;
-    floatingSaveWorkoutBtn.textContent = 'Salvar treino';
+    const isEditingWorkout = !workoutForm.classList.contains('hidden');
+    const shouldShowFloatingSave = state.configOpen && isEditingWorkout;
+    floatingSaveWorkoutBtn.classList.toggle('hidden', !shouldShowFloatingSave);
+    document.body.classList.toggle('floating-save-visible', shouldShowFloatingSave);
+    setSaveButtonsLoading(false);
 }
 
 function hideFloatingSaveButton() {
-    if (!floatingSaveWorkoutBtn) {
+    if (floatingSaveWorkoutBtn) {
+        floatingSaveWorkoutBtn.classList.add('hidden');
+    }
+    document.body.classList.remove('floating-save-visible');
+    setSaveButtonsLoading(false);
+}
+
+
+function syncDrawerQuickActionsVisibility() {
+    if (!workoutForm) {
         return;
     }
 
-    floatingSaveWorkoutBtn.classList.add('hidden');
-    floatingSaveWorkoutBtn.disabled = false;
-    floatingSaveWorkoutBtn.textContent = 'Salvar treino';
+    const isEditingWorkout = !workoutForm.classList.contains('hidden');
+    if (drawerQuickActions) {
+        drawerQuickActions.classList.toggle('hidden', isEditingWorkout);
+    }
+    document.querySelector('.json-drawer-section')?.classList.toggle('hidden', isEditingWorkout);
+}
+
+
+function syncDrawerStickyOffsets() {
+    if (!configPanel) {
+        return;
+    }
+
+    const panelHead = configPanel.querySelector('.drawer-panel-head');
+    const headerHeight = panelHead ? panelHead.getBoundingClientRect().height : 112;
+    configPanel.style.setProperty('--drawer-head-height', `${Math.ceil(headerHeight)}px`);
 }
 
 
@@ -1141,7 +1231,7 @@ function renderExerciseEditor(exercises) {
                         <button type="button" class="config-btn config-btn-secondary move-up-btn" data-exercise-id="${exercise.id}" data-move="up" title="Mover para cima" ${index === 0 ? 'disabled' : ''}>↑</button>
                         <button type="button" class="config-btn config-btn-secondary move-down-btn" data-exercise-id="${exercise.id}" data-move="down" title="Mover para baixo" ${index === exercises.length - 1 ? 'disabled' : ''}>↓</button>
                         <button type="button" class="config-btn config-btn-secondary duplicate-btn" data-exercise-id="${exercise.id}" title="Duplicar">📋</button>
-                        <button type="button" class="config-btn config-btn-danger remove-exercise-btn" data-exercise-id="${exercise.id}" title="Excluir exercício">🗑️</button>
+                        <button type="button" class="config-btn config-btn-danger remove-exercise-btn" data-exercise-id="${exercise.id}" title="Excluir exercicio">&#128465;</button>
                         <button type="button" class="config-btn config-btn-secondary expand-collapse-btn" data-exercise-id="${exercise.id}">${isExpanded ? '−' : '+'}</button>
                     </div>
                 </div>
@@ -1226,7 +1316,8 @@ function openWorkoutForm(workout) {
     setWizardStep(0);
     updateExercisesProgress();
     syncFloatingSaveVisibility();
-    workoutForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    syncDrawerQuickActionsVisibility();
+    workoutForm.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 function closeWorkoutForm() {
@@ -1238,15 +1329,13 @@ function closeWorkoutForm() {
     state.tempSwapTags = {};
     state.expandedExercises.clear();
     hideFloatingSaveButton();
+    syncDrawerQuickActionsVisibility();
 }
 
 function handleWorkoutSubmit(event) {
     if (event) event.preventDefault();
 
-    if (floatingSaveWorkoutBtn && !floatingSaveWorkoutBtn.classList.contains('hidden')) {
-        floatingSaveWorkoutBtn.disabled = true;
-        floatingSaveWorkoutBtn.textContent = 'Salvando...';
-    }
+    setSaveButtonsLoading(true);
 
     const workoutId = workoutForm.dataset.workoutId || createId('workout');
     const exercises = getCurrentFormExercises();
@@ -1339,10 +1428,48 @@ function incrementSeries(exerciseId, total) {
     }
 }
 
+
+function attachContainedScroll(element) {
+    if (!element || element.dataset.scrollContainmentAttached === 'true') {
+        return;
+    }
+
+    let startY = 0;
+    element.dataset.scrollContainmentAttached = 'true';
+
+    element.addEventListener('touchstart', (event) => {
+        startY = event.touches[0]?.clientY || 0;
+    }, { passive: true });
+
+    element.addEventListener('touchmove', (event) => {
+        const currentY = event.touches[0]?.clientY || 0;
+        const deltaY = currentY - startY;
+        const hasInternalScroll = element.scrollHeight > element.clientHeight + 1;
+
+        if (!hasInternalScroll || deltaY === 0) {
+            return;
+        }
+
+        const canScrollUp = element.scrollTop > 0;
+        const canScrollDown = Math.ceil(element.scrollTop + element.clientHeight) < element.scrollHeight;
+        const fingerMovingDown = deltaY > 0;
+        const fingerMovingUp = deltaY < 0;
+        const childCanHandleGesture = (fingerMovingDown && canScrollUp) || (fingerMovingUp && canScrollDown);
+
+        if (childCanHandleGesture) {
+            event.stopPropagation();
+        }
+    }, { passive: true });
+}
+
 function showSwaps(exerciseId) {
     const element = document.getElementById(`swaps-${exerciseId}`);
     if (element) {
         element.classList.remove('hidden');
+        document.body.classList.add('swap-overlay-open');
+        const scrollContainer = element.querySelector('.swap-options-list') || element;
+        attachContainedScroll(scrollContainer);
+        scrollContainer.scrollTop = 0;
     }
 }
 
@@ -1351,6 +1478,9 @@ function hideSwaps(exerciseId) {
     if (element) {
         element.classList.add('hidden');
     }
+
+    const hasVisibleSwapOverlay = Boolean(document.querySelector('[id^="swaps-"]:not(.hidden)'));
+    document.body.classList.toggle('swap-overlay-open', hasVisibleSwapOverlay);
 }
 
 function applySwap(exerciseId, newName) {
@@ -1872,8 +2002,36 @@ function hideImageLoadFallback(imageElement, fallbackElement) {
 // Event listeners
 
 toggleConfigBtn.addEventListener('click', () => {
-    setConfigOpen(!state.configOpen);
+    if (state.configOpen) {
+        requestCloseConfig();
+        return;
+    }
+
+    setConfigOpen(true);
 });
+
+if (closeConfigDrawerBtn) {
+    closeConfigDrawerBtn.addEventListener('click', requestCloseConfig);
+}
+
+if (configBackdrop) {
+    configBackdrop.addEventListener('click', requestCloseConfig);
+}
+
+window.addEventListener('resize', syncDrawerStickyOffsets);
+
+if (drawerNewWorkoutBtn) {
+    drawerNewWorkoutBtn.addEventListener('click', () => {
+        openWorkoutForm(createDraftWorkout());
+        setConfigOpen(true);
+    });
+}
+
+if (drawerImportShortcutBtn) {
+    drawerImportShortcutBtn.addEventListener('click', () => {
+        document.querySelector('.json-drawer-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+}
 
 weightTrackingToggle.addEventListener('change', (event) => {
     state.settings.enableWeightTracking = event.target.checked;
@@ -2177,6 +2335,11 @@ document.addEventListener('keydown', (event) => {
 
     if (event.key === 'Escape' && !imageViewerModal.classList.contains('hidden')) {
         closeImageViewer();
+        return;
+    }
+
+    if (event.key === 'Escape' && state.configOpen) {
+        requestCloseConfig();
     }
 });
 
@@ -2317,7 +2480,7 @@ if (addExerciseWizardBtn) {
     });
 }
 if (floatingSaveWorkoutBtn) {
-    floatingSaveWorkoutBtn.addEventListener('click', () => handleWorkoutSubmit());
+    floatingSaveWorkoutBtn.classList.add('hidden');
 }
 if (wizardTabs.length) {
     wizardTabs.forEach(tab => {

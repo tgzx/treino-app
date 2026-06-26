@@ -1303,3 +1303,515 @@ button[onclick^="startTimer"][data-running="true"] {
 .exercise-editor-card {
     scroll-margin-top: 9rem;
 }
+
+
+/* ChatGPT drawer management UX */
+body.drawer-open {
+    overflow: hidden;
+}
+
+.drawer-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 58;
+    background: rgba(15, 23, 42, 0.42);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+}
+
+#configPanel {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 60;
+    width: min(92vw, 460px);
+    max-width: 100%;
+    margin: 0 !important;
+    padding: 1rem;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    background: color-mix(in srgb, var(--card-bg) 96%, transparent);
+    border-left: 1px solid var(--border);
+    box-shadow: -18px 0 44px rgba(15, 23, 42, 0.18);
+    animation: drawer-slide-in 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.dark-mode #configPanel {
+    box-shadow: -18px 0 48px rgba(0, 0, 0, 0.42);
+}
+
+.drawer-panel-head {
+    position: sticky;
+    top: -1rem;
+    z-index: 12;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin: -1rem -1rem 1rem;
+    padding: 1rem;
+    background: color-mix(in srgb, var(--card-bg) 96%, transparent);
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+.drawer-panel-head h2 {
+    margin: 0;
+    font-size: 1.3rem;
+}
+
+.drawer-panel-head p {
+    margin: 0.2rem 0 0;
+    color: var(--text-muted);
+    line-height: 1.35;
+}
+
+.drawer-eyebrow {
+    margin: 0 0 0.25rem !important;
+    color: var(--accent) !important;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.drawer-close-btn {
+    width: 2.5rem;
+    height: 2.5rem;
+    flex: 0 0 auto;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--card-bg-soft);
+    color: var(--text-main);
+    font-size: 1.45rem;
+    line-height: 1;
+}
+
+.drawer-quick-actions {
+    position: sticky;
+    top: 4.7rem;
+    z-index: 10;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 0.65rem;
+    margin-bottom: 1rem;
+    padding: 0.65rem;
+    border: 1px solid var(--border);
+    border-radius: 1rem;
+    background: color-mix(in srgb, var(--card-bg-soft) 94%, transparent);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+.drawer-section {
+    margin-top: 1rem;
+}
+
+.drawer-section-title {
+    margin-bottom: 0.7rem;
+}
+
+.drawer-section-title h3 {
+    margin: 0;
+    font-size: 1rem;
+}
+
+.drawer-section-title p {
+    margin: 0.2rem 0 0;
+    color: var(--text-muted);
+    font-size: 0.88rem;
+}
+
+#configPanel .setting-card,
+#configPanel .manager-card,
+#configPanel .config-form,
+#configPanel .json-panel,
+#configPanel .exercise-editor-card {
+    background: color-mix(in srgb, var(--card-bg-soft) 92%, var(--card-bg));
+}
+
+#configPanel .manager-card {
+    align-items: stretch;
+}
+
+#configPanel .manager-actions {
+    align-content: center;
+}
+
+.drawer-open .floating-save-btn {
+    z-index: 75;
+}
+
+@keyframes drawer-slide-in {
+    from {
+        opacity: 0;
+        transform: translateX(1.5rem);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@media (max-width: 640px) {
+    #configPanel {
+        width: 100vw;
+        padding: 1rem;
+        border-left: none;
+    }
+
+    .drawer-panel-head {
+        top: -1rem;
+        padding-top: calc(1rem + env(safe-area-inset-top));
+    }
+
+    .drawer-quick-actions {
+        top: calc(5.1rem + env(safe-area-inset-top));
+    }
+
+    .drawer-open .floating-save-btn {
+        z-index: 80;
+    }
+}
+/* Mobile Safari drawer stability */
+#configPanel {
+    transform: translate3d(0, 0, 0);
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+}
+
+.drawer-backdrop {
+    touch-action: none;
+}
+
+
+/* Drawer save button cleanup */
+.form-save-actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 16;
+    margin: 1rem -1rem -1rem;
+    padding: 0.85rem 1rem calc(0.85rem + env(safe-area-inset-bottom));
+    background: color-mix(in srgb, var(--card-bg) 94%, transparent);
+    border-top: 1px solid var(--border);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+#floatingSaveWorkoutBtn {
+    display: none !important;
+}
+
+.drawer-quick-actions {
+    margin-bottom: 1.5rem;
+}
+
+.drawer-quick-actions + .drawer-section {
+    padding-top: 0.35rem;
+}
+
+@media (max-width: 640px) {
+    .form-save-actions {
+        margin-inline: -1rem;
+    }
+
+    .drawer-quick-actions {
+        top: calc(5.6rem + env(safe-area-inset-top));
+        margin-bottom: 1.65rem;
+    }
+}
+
+/* Drawer quick actions refinement */
+.drawer-quick-actions {
+    position: sticky !important;
+    top: calc(var(--drawer-head-height, 124px) - 1rem) !important;
+    z-index: 11;
+    margin: 0 0 1.25rem !important;
+    transform: translateZ(0);
+    box-shadow: 0 12px 26px rgba(15, 23, 42, 0.08);
+}
+
+.drawer-section + .drawer-section,
+.config-form,
+.json-drawer-section {
+    margin-top: 1.25rem;
+}
+
+#drawerQuickActions.hidden {
+    display: none !important;
+}
+
+
+.drawer-quick-actions::before {
+    content: '';
+    position: absolute;
+    inset: -0.65rem -0.65rem -0.45rem;
+    z-index: -1;
+    border-radius: 1.2rem;
+    background: color-mix(in srgb, var(--card-bg) 88%, transparent);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+/* ChatGPT final drawer form polish */
+.form-save-actions,
+.config-form::after {
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+.form-save-actions {
+    padding: 0 !important;
+    margin: 1rem 0 0 !important;
+}
+
+.config-form {
+    padding-bottom: 6rem !important;
+}
+
+#configPanel .wizard-tabs {
+    top: calc(var(--drawer-head-height, 124px) + 0.85rem) !important;
+    margin-top: 0.75rem !important;
+    margin-bottom: 1.35rem !important;
+    padding-top: 0.5rem !important;
+}
+
+#configPanel .wizard-content {
+    padding-top: 0.25rem;
+}
+
+#configPanel .drawer-panel-head + .config-form .wizard-tabs,
+#configPanel .config-form .wizard-tabs {
+    z-index: 14;
+}
+
+@media (max-width: 640px) {
+    #configPanel .wizard-tabs {
+        top: calc(var(--drawer-head-height, 124px) + env(safe-area-inset-top) + 0.85rem) !important;
+    }
+
+    .config-form {
+        padding-bottom: 7rem !important;
+    }
+}
+
+/* Form creation mode polish */
+#configPanel .config-form .wizard-tabs {
+    position: static !important;
+    top: auto !important;
+    z-index: auto !important;
+    margin-top: 0 !important;
+    margin-bottom: 1rem !important;
+    padding-top: 0 !important;
+    background: transparent !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+#configPanel .config-form {
+    padding-bottom: 7.75rem !important;
+}
+
+#configPanel .form-save-actions {
+    position: fixed !important;
+    left: max(1rem, env(safe-area-inset-left)) !important;
+    right: max(1rem, env(safe-area-inset-right)) !important;
+    bottom: calc(1rem + env(safe-area-inset-bottom)) !important;
+    z-index: 95 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+#configPanel .form-save-actions .save-btn {
+    width: 100%;
+}
+
+#configPanel .json-drawer-section.hidden {
+    display: none !important;
+}
+
+@media (min-width: 641px) {
+    #configPanel .form-save-actions {
+        left: auto !important;
+        right: 1rem !important;
+        width: min(calc(92vw - 2rem), 428px) !important;
+    }
+}
+
+/* Real floating save button while editing */
+#configPanel .form-save-actions {
+    display: none !important;
+}
+
+#floatingSaveWorkoutBtn.floating-save-btn {
+    display: block !important;
+    position: fixed !important;
+    left: max(1rem, env(safe-area-inset-left)) !important;
+    right: max(1rem, env(safe-area-inset-right)) !important;
+    bottom: calc(1rem + env(safe-area-inset-bottom)) !important;
+    width: auto !important;
+    z-index: 120 !important;
+    margin: 0 !important;
+}
+
+#floatingSaveWorkoutBtn.hidden {
+    display: none !important;
+}
+
+@media (min-width: 641px) {
+    #floatingSaveWorkoutBtn.floating-save-btn {
+        left: auto !important;
+        right: 1rem !important;
+        width: min(calc(92vw - 2rem), 428px) !important;
+    }
+}
+/* Swap overlay scroll containment */
+[id^="swaps-"] {
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+    max-height: 100%;
+}
+
+body.swap-overlay-open {
+    overscroll-behavior: none;
+}
+
+/* Cleaner swap overlay structure */
+[id^="swaps-"].swap-overlay:not(.hidden) {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden !important;
+}
+
+.swap-overlay-header {
+    flex: 0 0 auto;
+}
+
+.swap-options-list {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+    padding-bottom: 0.75rem;
+}
+/* Floating save subtle background */
+#floatingSaveWorkoutBtn.floating-save-btn {
+    box-shadow:
+        0 0 0 0.65rem color-mix(in srgb, var(--card-bg) 72%, transparent),
+        0 10px 28px rgba(37, 99, 235, 0.32) !important;
+}
+
+.dark-mode #floatingSaveWorkoutBtn.floating-save-btn {
+    box-shadow:
+        0 0 0 0.65rem rgba(15, 23, 42, 0.72),
+        0 10px 28px rgba(37, 99, 235, 0.28) !important;
+}
+
+/* Floating save full-width safe area on mobile */
+@media (max-width: 640px) {
+    #floatingSaveWorkoutBtn.floating-save-btn {
+        isolation: isolate;
+        box-shadow: 0 10px 28px rgba(37, 99, 235, 0.32) !important;
+    }
+
+    #floatingSaveWorkoutBtn.floating-save-btn::before {
+        content: '';
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: calc(5.75rem + env(safe-area-inset-bottom));
+        z-index: -1;
+        pointer-events: none;
+        background: color-mix(in srgb, var(--card-bg) 78%, transparent);
+        border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+        box-shadow: 0 -10px 30px rgba(15, 23, 42, 0.08);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+    }
+
+    .dark-mode #floatingSaveWorkoutBtn.floating-save-btn::before {
+        background: rgba(15, 23, 42, 0.78);
+        border-top-color: rgba(148, 163, 184, 0.18);
+        box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.22);
+    }
+}
+
+/* Disable old button-attached background layer */
+#floatingSaveWorkoutBtn.floating-save-btn::before {
+    content: none !important;
+    display: none !important;
+}
+
+/* Floating save background behind the button */
+@media (max-width: 640px) {
+    body.floating-save-visible::after {
+        content: '';
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: calc(5.75rem + env(safe-area-inset-bottom));
+        z-index: 119;
+        pointer-events: none;
+        background: color-mix(in srgb, var(--card-bg) 78%, transparent);
+        border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+        box-shadow: 0 -10px 30px rgba(15, 23, 42, 0.08);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+    }
+
+    body.dark-mode.floating-save-visible::after {
+        background: rgba(15, 23, 42, 0.78);
+        border-top-color: rgba(148, 163, 184, 0.18);
+        box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.22);
+    }
+
+    #floatingSaveWorkoutBtn.floating-save-btn {
+        z-index: 120 !important;
+        isolation: auto !important;
+    }
+}
+/* Floating save transparent background correction */
+@media (max-width: 640px) {
+    body.floating-save-visible::after {
+        background: rgba(255, 255, 255, 0.58) !important;
+        border-top-color: rgba(148, 163, 184, 0.24) !important;
+        box-shadow: 0 -10px 30px rgba(15, 23, 42, 0.07) !important;
+        backdrop-filter: blur(12px) saturate(1.15) !important;
+        -webkit-backdrop-filter: blur(12px) saturate(1.15) !important;
+    }
+
+    body.dark-mode.floating-save-visible::after,
+    .dark-mode body.floating-save-visible::after,
+    body.floating-save-visible.dark-mode::after {
+        background: rgba(15, 23, 42, 0.58) !important;
+        border-top-color: rgba(148, 163, 184, 0.16) !important;
+        box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.18) !important;
+    }
+}
+/* Floating save remove button ring */
+#floatingSaveWorkoutBtn.floating-save-btn,
+.dark-mode #floatingSaveWorkoutBtn.floating-save-btn {
+    border: 0 !important;
+    outline: 0 !important;
+    box-shadow: 0 10px 28px rgba(37, 99, 235, 0.28) !important;
+}
+
+#floatingSaveWorkoutBtn.floating-save-btn:focus,
+#floatingSaveWorkoutBtn.floating-save-btn:focus-visible {
+    outline: 0 !important;
+    box-shadow: 0 10px 28px rgba(37, 99, 235, 0.32) !important;
+}
